@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1b5e20" />
+      <stop offset="100%" stop-color="#2e7d32" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffb300" />
+      <stop offset="100%" stop-color="#f57c00" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Circular background filled with corporate premium green gradient -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGrad)" stroke="#ffffff" stroke-width="8" filter="url(#shadow)" />
+
+  <!-- Inner glowing decorative ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="8 8" opacity="0.4" />
+
+  <!-- Abstract healthy protein/power symbol (Stylized muscular arm & wings representing energy & health) -->
+  <g transform="translate(146, 116)" filter="url(#shadow)">
+    <!-- Shield / Core of Power representing trust/freshness -->
+    <path d="M110 20 C180 20, 200 40, 200 100 C200 170, 110 240, 110 240 C110 240, 20 170, 20 100 C20 40, 40 20, 110 20 Z" fill="url(#accentGrad)" />
+    
+    <!-- White fresh symbol (Flame of metabolism / leaf of natural freshness / fork and knife abstract) -->
+    <path d="M110 55 C125 55 135 65 135 80 C135 95 110 135 110 135 C110 135 85 95 85 80 C85 65 95 55 110 55 Z" fill="#ffffff" />
+    <path d="M110 145 C120 145 128 153 128 163 C128 173 110 205 110 205 C110 205 92 173 92 163 C92 153 100 145 110 145 Z" fill="#ffffff" opacity="0.9" />
+  </g>
+
+  <!-- Big Bold Text: Nirapod Khaddo Shomvar in elegant typography -->
+  <text x="256" y="415" font-family="'Inter', 'Outfit', sans-serif, system-ui" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2" opacity="0.95">NIRAPOD KHADDO</text>
+  <text x="256" y="445" font-family="'Inter', 'Outfit', sans-serif, system-ui" font-size="18" font-weight="700" fill="#ffb300" text-anchor="middle" letter-spacing="4">SHOMVAR</text>
+</svg>

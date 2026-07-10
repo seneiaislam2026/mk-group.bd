@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700;800;900&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Noto Sans Bengali Numbers";
+  font-weight: 300;
+  src: url('https://fonts.gstatic.com/s/notosansbengali/v23/Hi_diQOn6t7g-KxZCS5ZFi-t522_z1DsyL0H9g.woff2') format('woff2');
+  unicode-range: U+09E6-09EF;
+}
+@font-face {
+  font-family: "Noto Sans Bengali Numbers";
+  font-weight: 400;
+  src: url('https://fonts.gstatic.com/s/notosansbengali/v23/Hi_diQOn6t7g-KxZCS5ZFi-t522_z1DsyL0H9g.woff2') format('woff2');
+  unicode-range: U+09E6-09EF;
+}
+@font-face {
+  font-family: "Noto Sans Bengali Numbers";
+  font-weight: 500;
+  src: url('https://fonts.gstatic.com/s/notosansbengali/v23/Hi_diQOn6t7g-KxZCS5ZFi-t522_z1DsyL0H9g.woff2') format('woff2');
+  unicode-range: U+09E6-09EF;
+}
+@font-face {
+  font-family: "Noto Sans Bengali Numbers";
+  font-weight: 600;
+  src: url('https://fonts.gstatic.com/s/notosansbengali/v23/Hi_diQOn6t7g-KxZCS5ZFi-t522_z1DsyL0H9g.woff2') format('woff2');
+  unicode-range: U+09E6-09EF;
+}
+@font-face {
+  font-family: "Noto Sans Bengali Numbers";
+  font-weight: 700;
+  src: url('https://fonts.gstatic.com/s/notosansbengali/v23/Hi_diQOn6t7g-KxZCS5ZFi-t522_z1DsyL0H9g.woff2') format('woff2');
+  unicode-range: U+09E6-09EF;
+}
+@font-face {
+  font-family: "Noto Sans Bengali Numbers";
+  font-weight: 800;
+  src: url('https://fonts.gstatic.com/s/notosansbengali/v23/Hi_diQOn6t7g-KxZCS5ZFi-t522_z1DsyL0H9g.woff2') format('woff2');
+  unicode-range: U+09E6-09EF;
+}
+@font-face {
+  font-family: "Noto Sans Bengali Numbers";
+  font-weight: 900;
+  src: url('https://fonts.gstatic.com/s/notosansbengali/v23/Hi_diQOn6t7g-KxZCS5ZFi-t522_z1DsyL0H9g.woff2') format('woff2');
+  unicode-range: U+09E6-09EF;
+}
+
+@theme {
+  --color-primary: #E05A1B;
+  --color-primary-dark: #B83E10;
+  --color-secondary: #1B4332;
+  --color-secondary-light: #2D6A4F;
+  
+  --font-sans: "Noto Sans Bengali Numbers", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased bg-[#FDFCFB] text-slate-800;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}

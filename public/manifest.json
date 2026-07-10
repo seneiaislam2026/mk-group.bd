@@ -1,0 +1,59 @@
+{
+  "name": "MK Group | এম.কে.গ্রুপ",
+  "short_name": "MK Group",
+  "description": "এম.কে.গ্রুপ - আপনার পছন্দের সকল সামগ্রী।",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2e7d32",
+  "orientation": "portrait",
+  "scope": "/",
+  "categories": ["shopping"],
+  "icons": [
+    {
+      "src": "https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "আজকের অফার",
+      "short_name": "অফার",
+      "description": "আজকের স্পেশাল প্রোটিন আইটেম এবং ডিসকাউন্ট দেখুন",
+      "url": "/#offers",
+      "icons": [{ "src": "https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "এডমিন ড্যাশবোর্ড",
+      "short_name": "এডমিন",
+      "description": "অর্ডার ম্যানেজমেন্ট ও ট্র্যাকিং",
+      "url": "/#admin",
+      "icons": [{ "src": "https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png", "sizes": "192x192" }]
+    }
+  ]
+}

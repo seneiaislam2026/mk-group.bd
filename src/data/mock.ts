@@ -1,0 +1,137 @@
+import { Product, Category, Review } from '../types';
+
+export const categories: Category[] = [
+  { id: '1', name: 'জেন্টস ব্যাগ', icon: 'ShoppingBag', slug: 'gents-bag' },
+  { id: '2', name: 'ক্যাজুয়াল জুতো', icon: 'Footprints', slug: 'casual-shoes' },
+  { id: '3', name: 'স্পোর্টস জুতো', icon: 'Activity', slug: 'sports-shoes' },
+  { id: '4', name: 'ল্যামিজ স্যান্ডেল', icon: 'Flame', slug: 'lamiz-sandals' },
+  { id: '5', name: 'বাচ্চাদের কালেকশন', icon: 'Smile', slug: 'kids-collection' },
+  { id: '6', name: 'ক্রোকারি আইটেম', icon: 'Utensils', slug: 'crockery-items' },
+];
+
+export const mockProducts: Product[] = [
+  {
+    id: 'p1',
+    name: 'প্রিমিয়াম ব্ল্যাক লেদার জেন্টস ব্যাগ',
+    originalPrice: 2200,
+    discountedPrice: 1750,
+    image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80',
+    stock: 50,
+    category: 'জেন্টস ব্যাগ',
+    rating: 4.8,
+    reviews: 124,
+    weight: '১টি',
+    isFlashSale: true,
+  },
+  {
+    id: 'p2',
+    name: 'ক্লাসিক ব্রাউন ক্যাজুয়াল চামড়ার জুতো',
+    originalPrice: 3200,
+    discountedPrice: 2499,
+    image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=800&q=80',
+    stock: 50,
+    category: 'ক্যাজুয়াল জুতো',
+    rating: 4.9,
+    reviews: 89,
+    weight: '১ জোড়া',
+  },
+  {
+    id: 'p3',
+    name: 'রানার্স আল্ট্রা লাইট স্পোর্টস জুতো',
+    originalPrice: 1800,
+    discountedPrice: 1399,
+    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80',
+    stock: 50,
+    category: 'স্পোর্টস জুতো',
+    rating: 4.7,
+    reviews: 210,
+    weight: '১ জোড়া',
+    isFlashSale: true,
+  },
+  {
+    id: 'p4',
+    name: 'ল্যামিজ ক্লাসিক কমফোর্ট স্যান্ডেল',
+    originalPrice: 1500,
+    discountedPrice: 1150,
+    image: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&w=800&q=80',
+    stock: 50,
+    category: 'ল্যামিজ স্যান্ডেল',
+    rating: 4.6,
+    reviews: 156,
+    weight: '১ জোড়া',
+    isNew: true,
+  },
+  {
+    id: 'p5',
+    name: 'কিডস কালারফুল ফ্যান্সি স্নিকার্স',
+    originalPrice: 1400,
+    discountedPrice: 999,
+    image: 'https://images.unsplash.com/photo-1514989940723-e8e51635b782?auto=format&fit=crop&w=800&q=80',
+    stock: 50,
+    category: 'বাচ্চাদের কালেকশন',
+    rating: 4.9,
+    reviews: 320,
+    weight: '১ জোড়া',
+  },
+  {
+    id: 'p6',
+    name: 'প্রিমিয়াম সিরামিক ডিনার প্লেট সেট',
+    originalPrice: 2800,
+    discountedPrice: 2200,
+    image: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=800&q=80',
+    stock: 50,
+    category: 'ক্রোকারি আইটেম',
+    rating: 4.8,
+    reviews: 180,
+    weight: '১ সেট',
+  },
+  {
+    id: 'p7',
+    name: 'এক্সক্লুসিভ লেদার ট্রাভেল ডাফেল ব্যাগ',
+    originalPrice: 4500,
+    discountedPrice: 3800,
+    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80',
+    stock: 50,
+    category: 'জেন্টস ব্যাগ',
+    rating: 4.5,
+    reviews: 94,
+    weight: '১টি',
+  },
+  {
+    id: 'p8',
+    name: 'মডার্ন কাঠের মিনিমালিস্ট ডাইনিং চেয়ার',
+    originalPrice: 3500,
+    discountedPrice: 2999,
+    image: 'https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=800&q=80',
+    stock: 50,
+    category: 'ক্রোকারি আইটেম',
+    rating: 4.7,
+    reviews: 112,
+    weight: '১টি',
+    isNew: true,
+  }
+];
+
+export const mockReviews: Review[] = [
+  {
+    id: 'r1',
+    customerName: 'আব্দুর রহমান',
+    rating: 5,
+    comment: 'জুতোর কোয়ালিটি অনেক ভালো ছিল। প্যাকেজিং এবং ডেলিভারি নিয়ে আমি পুরোপুরি সন্তুষ্ট।',
+    date: '২০ ফাল্গুন, ১৪৩০'
+  },
+  {
+    id: 'r2',
+    customerName: 'ফারহানা ইসলাম',
+    rating: 4,
+    comment: 'ব্যাগটি অনেক ফ্রেশ ছিল। তবে ডেলিভারিতে একটু দেরি হয়েছে। সব মিলিয়ে ভালো সার্ভিস।',
+    date: '১৫ ফাল্গুন, ১৪৩০'
+  },
+  {
+    id: 'r3',
+    customerName: 'শরীফুল হক',
+    rating: 5,
+    comment: 'জুতোজোড়া একদম সুন্দর ছিল। যেমনটা ছবিতে দেখেছি, ঠিক তেমনই। ধন্যবাদ এম.কে.গ্রুপ!',
+    date: '১০ ফাল্গুন, ১৪৩০'
+  }
+];

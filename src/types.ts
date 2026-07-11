@@ -13,6 +13,7 @@ export interface Product {
   description?: string;
   stock?: number;
   article?: string;
+  isHidden?: boolean;
 }
 
 export interface Category {

@@ -439,7 +439,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     isFlashSale: false,
     description: '',
     stock: '',
-    article: ''
+    article: '',
+    isHidden: false
   });
 
   // Order viewing modal state
@@ -795,7 +796,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       isFlashSale: productFormData.isFlashSale,
       description: productFormData.description,
       article: productFormData.article,
-      stock: productFormData.stock ? parseInt(productFormData.stock) : undefined
+      stock: productFormData.stock ? parseInt(productFormData.stock) : undefined,
+      isHidden: productFormData.isHidden
     };
 
     if (editingProduct) {
@@ -853,7 +855,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       isFlashSale: false,
       description: '',
       stock: '',
-      article: ''
+      article: '',
+      isHidden: false
     });
     setIsProductModalOpen(true);
   };
@@ -1332,7 +1335,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     weight: '১ পিস',
                     image: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=400&q=80',
                     stock: totalItems,
-                    article: boxReceiveData.article
+                    article: boxReceiveData.article,
+                    isHidden: true
                   };
                   addProduct(newProduct);
                   
@@ -4792,7 +4796,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     category: 'কাস্টম',
                     weight: '১ পিস',
                     image: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=400&q=80',
-                    stock: qty
+                    stock: qty,
+                    isHidden: true
                   };
                   addProduct(newProduct);
                   alert('কাস্টম রিসিভ সফল হয়েছে!');
@@ -4950,6 +4955,16 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     className="w-4 h-4 text-[#2e7d32] border-[#2e7d32]/20 rounded focus:ring-0 cursor-pointer"
                   />
                   <span>ফ্ল্যাশ সেল তালিকাভুক্ত</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-rose-700 text-xs bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-100">
+                  <input 
+                    type="checkbox" 
+                    checked={productFormData.isHidden} 
+                    onChange={(e) => setProductFormData(p => ({ ...p, isHidden: e.target.checked }))} 
+                    className="w-4 h-4 text-rose-600 border-rose-300 rounded focus:ring-rose-500 cursor-pointer"
+                  />
+                  <span className="font-bold">হোমপেজ থেকে লুকান (শুধুমাত্র স্টকের জন্য)</span>
                 </label>
               </div>
 

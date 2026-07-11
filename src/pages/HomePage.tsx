@@ -28,6 +28,7 @@ export default function HomePage() {
 
   // Advanced Category & Search matching filter logic
   const filteredProducts = products.filter(product => {
+    if (product.isHidden) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return product.name.toLowerCase().includes(q) || 
@@ -136,7 +137,7 @@ export default function HomePage() {
           <section className="container mx-auto px-4 py-8">
             <h2 className="sr-only">জনপ্রিয় পণ্যসমূহ</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-               {products.slice(0, 6).map(product => (
+               {products.filter(p => !p.isHidden).slice(0, 6).map(product => (
                  <ProductCard key={product.id} product={product} />
                ))}
             </div>

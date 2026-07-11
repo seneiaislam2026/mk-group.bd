@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { PackagePlus, ExternalLink, RefreshCw, Boxes, ArrowRightLeft, SlidersHorizontal, Building } from "lucide-react";
+import StaffPortal from '../components/admin/StaffPortal';
 import { FileText, 
   Package, 
   ShoppingBag, 
-  Users, 
+  Users, UserCheck, Camera, 
   BarChart3, 
   Settings, 
   LogOut, 
@@ -23,7 +24,7 @@ import { FileText,
   Menu, 
   X, 
   Edit, 
-  Trash2, 
+  Trash2, Briefcase, 
   CheckCircle, 
   Clock, 
   AlertTriangle,
@@ -48,7 +49,7 @@ import { FileText,
   Truck,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { Product } from '../types';
+import { Product, Investor } from '../types';
 
 export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   // Authentication state
@@ -60,7 +61,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [error, setError] = useState('');
 
   // Tab routing
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'receiving' | 'courier' | 'inventory' | 'orders' | 'customers' | 'settings' | 'finances' | 'marketing' | 'dues'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'receiving' | 'courier' | 'inventory' | 'orders' | 'customers' | 'settings' | 'finances' | 'marketing' | 'dues' | 'agreement' | 'investors' | 'staff'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Language translation state
@@ -458,7 +459,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+
   // Agreement Form State
+  const [isAgreementSaved, setIsAgreementSaved] = useState(false);
+
+
+
+    // Handle saving agreement as investor
   const [agreementData, setAgreementData] = useState({
     party1: { name: '', fname: '', mname: '', address: '', nid: '', mobile: '' },
     party2: { name: '', fname: '', mname: '', address: '', nid: '', mobile: '' },
@@ -470,6 +477,108 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     witness2: { name: '', address: '', nid: '', mobile: '' },
     witness3: { name: '', address: '', nid: '', mobile: '' }
   });
+
+  // Reset print state if form is modified
+  useEffect(() => {
+    setIsAgreementSaved(false);
+  }, [agreementData]);
+
+  const handleSaveInvestor = () => {
+    if (!agreementData.party1.name || !agreementData.party1.mobile || !agreementData.details.totalAmount) {
+      alert("১ম পক্ষ ক্রেতার নাম, মোবাইল এবং চুক্তির মোট টাকার পরিমান অবশ্যই পূরণ করতে হবে।");
+      return;
+    }
+    
+    // Calculate values
+    const totalAmount = parseFloat(agreementData.details.totalAmount) || 0;
+    const dueAmount = parseFloat(agreementData.details.dueAmount) || 0;
+    const paidAmount = totalAmount - dueAmount;
+    
+    const newInvestor: Investor = {
+      id: Math.random().toString(36).substr(2, 9),
+      accountNumber: Math.floor(1000000 + Math.random() * 9000000).toString(),
+      name: agreementData.party1.name,
+      fname: agreementData.party1.fname,
+      mobile: agreementData.party1.mobile,
+      nid: agreementData.party1.nid,
+      address: agreementData.party1.address,
+      totalAmount: totalAmount,
+      dueAmount: dueAmount,
+      paidAmount: paidAmount,
+      date: new Date().toISOString()
+    };
+    
+    // Save to localStorage
+    const stored = localStorage.getItem('mega_investors');
+    const existing = stored ? JSON.parse(stored) : [];
+    const updatedList = [newInvestor, ...existing];
+    localStorage.setItem('mega_investors', JSON.stringify(updatedList));
+    setInvestorsList(updatedList);
+    
+    setIsAgreementSaved(true);
+    alert(`বিনিয়োগকারী সফলভাবে সংরক্ষিত হয়েছে! একাউন্ট নম্বর: ${newInvestor.accountNumber}\nএখন আপনি চুক্তিনামা প্রিন্ট করতে পারবেন।`);
+  };
+
+
+  // Investors Management
+  const [investorsList, setInvestorsList] = useState<Investor[]>([]);
+  const [showAddInvestorForm, setShowAddInvestorForm] = useState(false);
+  const [newInvestorData, setNewInvestorData] = useState({
+    name: '', fname: '', mobile: '', nid: '', address: '', totalAmount: '', dueAmount: ''
+  });
+
+  useEffect(() => {
+    if (activeTab === 'investors') {
+      const stored = localStorage.getItem('mega_investors');
+      if (stored) {
+        setInvestorsList(JSON.parse(stored));
+      }
+    }
+  }, [activeTab]);
+
+  const handleManualAddInvestor = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newInvestorData.name || !newInvestorData.mobile || !newInvestorData.totalAmount) {
+      alert('নাম, মোবাইল এবং মোট বিনিয়োগের পরিমান আবশ্যক।');
+      return;
+    }
+
+    const totalAmount = parseFloat(newInvestorData.totalAmount) || 0;
+    const dueAmount = parseFloat(newInvestorData.dueAmount) || 0;
+    const paidAmount = totalAmount - dueAmount;
+
+    const newInvestor: Investor = {
+      id: Math.random().toString(36).substr(2, 9),
+      accountNumber: Math.floor(1000000 + Math.random() * 9000000).toString(),
+      name: newInvestorData.name,
+      fname: newInvestorData.fname,
+      mobile: newInvestorData.mobile,
+      nid: newInvestorData.nid,
+      address: newInvestorData.address,
+      totalAmount: totalAmount,
+      dueAmount: dueAmount,
+      paidAmount: paidAmount,
+      date: new Date().toISOString()
+    };
+
+    const updatedList = [newInvestor, ...investorsList];
+    setInvestorsList(updatedList);
+    localStorage.setItem('mega_investors', JSON.stringify(updatedList));
+    
+    setNewInvestorData({ name: '', fname: '', mobile: '', nid: '', address: '', totalAmount: '', dueAmount: '' });
+    setShowAddInvestorForm(false);
+    alert(`বিনিয়োগকারী সফলভাবে সংরক্ষিত হয়েছে! একাউন্ট নম্বর: ${newInvestor.accountNumber}`);
+  };
+
+  const handleDeleteInvestor = (id: string) => {
+    if (window.confirm('আপনি কি এই বিনিয়োগকারীকে মুছে ফেলতে চান?')) {
+      const updatedList = investorsList.filter(inv => inv.id !== id);
+      setInvestorsList(updatedList);
+      localStorage.setItem('mega_investors', JSON.stringify(updatedList));
+    }
+  };
+
+
 
   // Courier booking mockup states
   const [bookingOrder, setBookingOrder] = useState<any | null>(null);
@@ -1095,6 +1204,20 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <FileText size={18} /> চুক্তিনামা প্রিন্ট
           </button>
           <button 
+            onClick={() => setActiveTab('investors')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'investors' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <Briefcase size={18} /> বিনিয়োগকারীগণ
+          </button>
+          <button 
+            onClick={() => setActiveTab('staff')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'staff' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <UserCheck size={18} /> স্টাফ পোর্টাল
+          </button>
+
+
+          <button 
             onClick={() => setActiveTab('marketing')} 
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'marketing' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
@@ -1222,6 +1345,20 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               >
                 <FileText size={16} /> চুক্তিনামা প্রিন্ট
               </button>
+              <button 
+                onClick={() => { setActiveTab('investors'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'investors' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                <Briefcase size={16} /> বিনিয়োগকারীগণ
+              </button>
+              <button 
+                onClick={() => { setActiveTab('staff'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'staff' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                <UserCheck size={16} /> স্টাফ পোর্টাল
+              </button>
+
+
               <button 
                 onClick={() => { setActiveTab('marketing'); setIsMobileMenuOpen(false); }} 
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'marketing' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
@@ -1418,6 +1555,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   {activeTab === 'dues' && 'বকেয়া হিসাব ও কালেকশন'}
                   {activeTab === 'marketing' && 'মার্কেটিং ও ডিসকাউন্ট ইন্টেলিজেন্স'}
                   {activeTab === 'settings' && 'সিস্টেম সেটিংস'}
+                  {activeTab === 'staff' && 'স্টাফ পোর্টাল'}
                 </h1>
                 <p className="text-[10px] md:text-xs text-slate-400 hidden sm:block font-bold mt-0.5">
                   এম.কে.গ্রুপ • রিয়েল-টাইম অ্যাডমিন অ্যাকশন
@@ -3783,6 +3921,128 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </div>
           )}
 
+          
+          {/* TAB: INVESTORS */}
+          {activeTab === 'investors' && (
+            <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-black text-slate-800">বিনিয়োগকারী ব্যবস্থাপনা</h2>
+                  <p className="text-xs text-slate-500 mt-1">আপনার সকল বিনিয়োগকারীদের তালিকা এবং নতুন যুক্ত করুন</p>
+                </div>
+                <button 
+                  onClick={() => setShowAddInvestorForm(!showAddInvestorForm)}
+                  className="bg-[#2e7d32] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-lg shadow-[#2e7d32]/20"
+                >
+                  {showAddInvestorForm ? <X size={16} /> : <Users size={16} />} 
+                  {showAddInvestorForm ? 'বাতিল করুন' : 'ম্যানুয়ালি যুক্ত করুন'}
+                </button>
+              </div>
+
+              {showAddInvestorForm ? (
+                <div className="bg-slate-50 border border-slate-100 p-6 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-300 mb-8">
+                  <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Briefcase size={18} className="text-emerald-600" />
+                    নতুন বিনিয়োগকারী ফর্ম
+                  </h3>
+                  <form onSubmit={handleManualAddInvestor} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">নাম <span className="text-rose-500">*</span></label>
+                      <input type="text" value={newInvestorData.name} onChange={e => setNewInvestorData(p => ({...p, name: e.target.value}))} className="w-full px-3 py-2 rounded-xl text-xs border outline-none focus:border-emerald-600" required />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">পিতার নাম</label>
+                      <input type="text" value={newInvestorData.fname} onChange={e => setNewInvestorData(p => ({...p, fname: e.target.value}))} className="w-full px-3 py-2 rounded-xl text-xs border outline-none focus:border-emerald-600" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">মোবাইল <span className="text-rose-500">*</span></label>
+                      <input type="text" value={newInvestorData.mobile} onChange={e => setNewInvestorData(p => ({...p, mobile: e.target.value}))} className="w-full px-3 py-2 rounded-xl text-xs border outline-none focus:border-emerald-600" required />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">এনআইডি (NID)</label>
+                      <input type="text" value={newInvestorData.nid} onChange={e => setNewInvestorData(p => ({...p, nid: e.target.value}))} className="w-full px-3 py-2 rounded-xl text-xs border outline-none focus:border-emerald-600" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">ঠিকানা</label>
+                      <input type="text" value={newInvestorData.address} onChange={e => setNewInvestorData(p => ({...p, address: e.target.value}))} className="w-full px-3 py-2 rounded-xl text-xs border outline-none focus:border-emerald-600" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">মোট বিনিয়োগের পরিমান (৳) <span className="text-rose-500">*</span></label>
+                      <input type="number" value={newInvestorData.totalAmount} onChange={e => setNewInvestorData(p => ({...p, totalAmount: e.target.value}))} className="w-full px-3 py-2 rounded-xl text-xs border outline-none focus:border-emerald-600" required />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 mb-1">বকেয়া পরিমান (যদি থাকে)</label>
+                      <input type="number" value={newInvestorData.dueAmount} onChange={e => setNewInvestorData(p => ({...p, dueAmount: e.target.value}))} className="w-full px-3 py-2 rounded-xl text-xs border outline-none focus:border-emerald-600" />
+                    </div>
+                    <div className="md:col-span-2 flex justify-end mt-4">
+                      <button type="submit" className="bg-emerald-600 text-white px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 shadow-md">
+                        সংরক্ষণ করুন
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : null}
+
+              {/* List of investors */}
+              {investorsList.length === 0 && !showAddInvestorForm ? (
+                <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+                    <Briefcase size={28} className="text-slate-400" />
+                  </div>
+                  <h3 className="font-bold text-slate-800">কোন বিনিয়োগকারী নেই</h3>
+                  <p className="text-xs text-slate-500 mt-1">নতুন বিনিয়োগকারী যুক্ত করতে উপরের বাটনে ক্লিক করুন</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {investorsList.map((inv) => (
+                    <div key={inv.id} className="border border-slate-100 bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative group">
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleDeleteInvestor(inv.id)} className="text-rose-400 hover:text-rose-600 p-1.5 bg-rose-50 rounded-lg">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3 mb-4 border-b border-slate-50 pb-3">
+                        <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 font-black text-lg border border-emerald-100">
+                          {inv.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-800 leading-tight">{inv.name}</h4>
+                          <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase tracking-wider mt-1 inline-block">A/C: {inv.accountNumber}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between">
+                          <span className="text-[11px] text-slate-500 font-bold">মোবাইল:</span>
+                          <span className="text-[11px] text-slate-800 font-bold">{inv.mobile}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[11px] text-slate-500 font-bold">তারিখ:</span>
+                          <span className="text-[11px] text-slate-800 font-bold">{new Date(inv.date).toLocaleDateString('bn-BD')}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-[11px] text-slate-500 font-bold">মোট বিনিয়োগ:</span>
+                          <span className="text-[11px] text-slate-800 font-black">৳ {inv.totalAmount.toLocaleString('bn-BD')}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[11px] text-slate-500 font-bold">পরিশোধিত:</span>
+                          <span className="text-[11px] text-emerald-600 font-black">৳ {inv.paidAmount.toLocaleString('bn-BD')}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[11px] text-slate-500 font-bold">বকেয়া:</span>
+                          <span className="text-[11px] text-rose-600 font-black">৳ {inv.dueAmount.toLocaleString('bn-BD')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB: AGREEMENT */}
           {activeTab === 'agreement' && (
             <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6">
@@ -3791,15 +4051,26 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   <h2 className="text-xl font-black text-slate-800">ক্রয় বিক্রয় চুক্তিনামা ফর্ম</h2>
                   <p className="text-xs text-slate-500 mt-1">সমস্ত তথ্য পূরণ করে চুক্তিনামা প্রিন্ট করুন</p>
                 </div>
-                <button 
-                  onClick={() => {
-                    const dataStr = encodeURIComponent(JSON.stringify(agreementData));
-                    window.open(`/print-agreement?data=${dataStr}`, '_blank');
-                  }}
-                  className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
-                >
-                  <FileText size={16} /> প্রিন্ট করুন
-                </button>
+                                <div className="flex gap-3">
+                {!isAgreementSaved ? (
+                  <button 
+                    onClick={handleSaveInvestor}
+                    className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+                  >
+                    <Users size={16} /> বিনিয়োগকারী হিসেবে সেভ করুন
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      const dataStr = encodeURIComponent(JSON.stringify(agreementData));
+                      window.open(`/print-agreement?data=${dataStr}`, '_blank');
+                    }}
+                    className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                  >
+                    <FileText size={16} /> প্রিন্ট করুন
+                  </button>
+                )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -4065,6 +4336,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </div>
             </div>
           )}
+          
+                    {/* TAB: STAFF PORTAL */}
+          {activeTab === 'staff' && <StaffPortal />}
           
           {/* TAB 5: SYSTEM SETTINGS */}
           {activeTab === 'settings' && (

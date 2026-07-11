@@ -23,6 +23,20 @@ export interface Category {
   slug: string;
 }
 
+export interface Investor {
+  id: string;
+  accountNumber: string;
+  name: string;
+  fname: string;
+  mobile: string;
+  nid: string;
+  address: string;
+  totalAmount: number;
+  dueAmount: number;
+  paidAmount: number;
+  date: string;
+}
+
 export interface Review {
   id: string;
   customerName: string;

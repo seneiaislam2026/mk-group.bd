@@ -9,6 +9,7 @@ import CartDrawer from '../ui/CartDrawer';
 import ProductDetailsModal from '../ui/ProductDetailsModal';
 import PriceListModal from '../ui/PriceListModal';
 import OrderTrackingModal from '../ui/OrderTrackingModal';
+import InvestorPortalModal from '../ui/InvestorPortalModal';
 import TopBannerNotification from '../ui/TopBannerNotification';
 import PrintInvoice from '../../pages/PrintInvoice';
 import PrintAgreement from '../../pages/PrintAgreement';
@@ -136,6 +137,7 @@ export default function Layout() {
           <ProductDetailsModal />
           <PriceListModal />
           <OrderTrackingModal />
+          <InvestorPortalModal />
 
           {/* Floating WhatsApp Contact Button */}
           <a 

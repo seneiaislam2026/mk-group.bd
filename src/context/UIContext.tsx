@@ -12,6 +12,8 @@ interface UIContextType {
   setIsPriceListOpen: (open: boolean) => void;
   isOrderTrackingOpen: boolean;
   setIsOrderTrackingOpen: (open: boolean) => void;
+  isInvestorPortalOpen: boolean;
+  setIsInvestorPortalOpen: (open: boolean) => void;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isPriceListOpen, setIsPriceListOpen] = useState<boolean>(false);
   const [isOrderTrackingOpen, setIsOrderTrackingOpen] = useState<boolean>(false);
+  const [isInvestorPortalOpen, setIsInvestorPortalOpen] = useState<boolean>(false);
   
   return (
     <UIContext.Provider value={{ 
@@ -34,7 +37,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
       isPriceListOpen,
       setIsPriceListOpen,
       isOrderTrackingOpen,
-      setIsOrderTrackingOpen
+      setIsOrderTrackingOpen,
+      isInvestorPortalOpen,
+      setIsInvestorPortalOpen
     }}>
       {children}
     </UIContext.Provider>

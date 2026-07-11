@@ -70,7 +70,7 @@ export default function ProductDetailsModal() {
           <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 leading-tight mb-2">
             {selectedProduct.name}
           </h2>
-          <p className="text-gray-500 text-sm mb-4">ওজন: <span className="font-semibold text-slate-700">{selectedProduct.weight}</span></p>
+          <p className="text-gray-500 text-sm mb-4">প্রতি বক্সে: <span className="font-semibold text-slate-700">{selectedProduct.weight}</span></p>
 
           <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
             <span className="text-4xl font-extrabold text-primary leading-none">৳{price}</span>
@@ -93,7 +93,7 @@ export default function ProductDetailsModal() {
                 >
                   <Minus size={16} />
                 </button>
-                <span className="w-12 text-center text-sm font-bold text-slate-800">{quantity}</span>
+                <span className="w-16 text-center text-sm font-bold text-slate-800">{quantity} বক্স</span>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
                   className="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-white hover:text-secondary hover:shadow-sm rounded-full transition-all"

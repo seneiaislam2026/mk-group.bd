@@ -277,8 +277,8 @@ export default function ProductLandingPage({ productId, onBack }: ProductLanding
                 <span className="text-slate-800 text-right">{placedOrderDetails?.productName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">পরিমাণ (ওজন):</span>
-                <span className="text-slate-800">{placedOrderDetails?.quantity} টি ({product.weight})</span>
+                <span className="text-slate-400">পরিমাণ (বক্স):</span>
+                <span className="text-slate-800">{placedOrderDetails?.quantity} বক্স ({product.weight})</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">মোট মূল্য:</span>
@@ -351,7 +351,7 @@ export default function ProductLandingPage({ productId, onBack }: ProductLanding
                 </h1>
                 
                 <p className="text-gray-500 font-bold text-xs md:text-sm mb-6">
-                  প্যাকেজ সাইজ (ওজন): <span className="text-[#1b4332] font-black">{product.weight}</span>
+                  প্রতি বক্সে: <span className="text-[#1b4332] font-black">{product.weight}</span>
                 </p>
 
                 {/* Big Image Representation */}
@@ -435,7 +435,7 @@ export default function ProductLandingPage({ productId, onBack }: ProductLanding
                       <img loading="lazy" src={product.image} alt={product.name} className="w-12 h-12 rounded-lg object-cover border border-slate-200 shadow-sm shrink-0" />
                       <div className="min-w-0 flex-1">
                         <h4 className="text-xs sm:text-sm font-black text-slate-800 truncate">{product.name}</h4>
-                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">ওজন: {product.weight}</p>
+                        <p className="text-[10px] text-slate-400 font-bold mt-0.5">প্রতি বক্সে: {product.weight}</p>
                       </div>
                     </div>
 
@@ -455,7 +455,7 @@ export default function ProductLandingPage({ productId, onBack }: ProductLanding
                         >
                           -
                         </button>
-                        <span className="w-8 text-center text-xs font-black text-slate-850">{toBanglaNumber(quantity)}</span>
+                        <span className="w-12 text-center text-xs font-black text-slate-850">{toBanglaNumber(quantity)} বক্স</span>
                         <button 
                           type="button"
                           onClick={() => setQuantity(quantity + 1)}

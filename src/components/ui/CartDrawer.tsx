@@ -198,7 +198,7 @@ export default function CartDrawer() {
                         >
                           <Minus size={14} />
                         </button>
-                        <span className="w-8 text-center text-xs font-bold text-slate-800">{item.quantity}</span>
+                        <span className="w-12 text-center text-xs font-bold text-slate-800">{item.quantity} বক্স</span>
                         <button 
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                           className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-secondary"

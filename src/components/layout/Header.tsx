@@ -6,7 +6,7 @@ import { useUI } from '../../context/UIContext';
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { cartCount, setIsCartOpen } = useCart();
-  const { activeCategory, setActiveCategory, setIsPriceListOpen, setIsOrderTrackingOpen } = useUI();
+  const { activeCategory, setActiveCategory, setIsPriceListOpen, setIsOrderTrackingOpen, setIsInvestorPortalOpen } = useUI();
 
   const categoriesList = [
     { name: 'জেন্টস ব্যাগ', slug: 'gents-bag' },
@@ -96,6 +96,14 @@ export default function Header() {
                       className="w-full text-left flex items-center gap-2 px-6 py-3.5 font-extrabold text-sm text-blue-700 bg-blue-50/50 hover:bg-blue-100/60 duration-200 cursor-pointer border-y border-blue-100"
                     >
                       🚚 অর্ডার ট্র্যাকিং
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      onClick={() => { setIsInvestorPortalOpen(true); setIsMobileMenuOpen(false); }}
+                      className="w-full text-left flex items-center gap-2 px-6 py-3.5 font-extrabold text-sm text-[#00693E] bg-[#00693E]/5 hover:bg-[#00693E]/10 duration-200 cursor-pointer border-b border-[#00693E]/10"
+                    >
+                      💼 বিনিয়োগকারীর তথ্য
                     </button>
                   </li>
                   

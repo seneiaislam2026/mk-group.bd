@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { PackagePlus, ExternalLink, RefreshCw } from "lucide-react";
+import { PackagePlus, ExternalLink, RefreshCw, Boxes, ArrowRightLeft, SlidersHorizontal, Building } from "lucide-react";
 import { FileText, 
   Package, 
   ShoppingBag, 
@@ -60,7 +60,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [error, setError] = useState('');
 
   // Tab routing
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'orders' | 'customers' | 'settings' | 'finances' | 'marketing' | 'dues'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'receiving' | 'courier' | 'inventory' | 'orders' | 'customers' | 'settings' | 'finances' | 'marketing' | 'dues'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Language translation state
@@ -74,6 +74,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       productManagement: 'পণ্য ম্যানেজমেন্ট',
       productReceiving: 'পণ্য রিসিভিং',
       courier: 'কুরিয়ার ড্যাশবোর্ড',
+      inventory: 'ইনভেন্টরি কন্ট্রোল',
       orders: 'অর্ডার সমূহ',
       customerList: 'কাস্টমার লিস্ট',
       settings: 'সেটিংস',
@@ -93,6 +94,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       productManagement: 'Products',
       productReceiving: 'Product Receiving',
       courier: 'Courier Dashboard',
+      inventory: 'Inventory Control',
       orders: 'Orders List',
       customerList: 'Customers',
       settings: 'Settings',
@@ -1016,6 +1018,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <Package size={18} /> {t.productManagement}
           </button>
           <button 
+            onClick={() => setActiveTab('inventory')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'inventory' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <Boxes size={18} /> {t.inventory}
+          </button>
+          <button 
             onClick={() => setActiveTab('receiving')} 
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'receiving' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
@@ -1136,6 +1144,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'products' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
               >
                 <Package size={16} /> {t.productManagement}
+              </button>
+              <button 
+                onClick={() => { setActiveTab('inventory'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'inventory' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                <Boxes size={16} /> {t.inventory}
               </button>
               <button 
                 onClick={() => { setActiveTab('receiving'); setIsMobileMenuOpen(false); }} 
@@ -1366,6 +1380,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <h1 className="text-base md:text-xl font-extrabold text-slate-800 truncate leading-tight">
                   {activeTab === 'dashboard' && 'ড্যাশবোর্ড ওভারভিউ'}
                   {activeTab === 'products' && 'পণ্য ম্যানেজমেন্ট'}
+                  {activeTab === 'inventory' && 'ইনভেন্টরি কন্ট্রোল'}
                   {activeTab === 'receiving' && 'পণ্য রিসিভিং (স্টক)'}
                   {activeTab === 'courier' && 'কুরিয়ার ড্যাশবোর্ড'}
                   {activeTab === 'orders' && 'অর্ডার সমূহ'}
@@ -2133,6 +2148,72 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       </div>
                     ))
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: INVENTORY CONTROL */}
+          {activeTab === 'inventory' && (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col min-w-0">
+              <div className="p-4 md:p-5 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap select-none">
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-800">ইনভেন্টরি কন্ট্রোল</h3>
+                  <p className="text-xs text-slate-400 font-bold mt-0.5">বিভিন্ন ওয়্যারহাউসের স্টক ব্যালেন্স পরিচালনা করুন, স্টক স্থানান্তর করুন এবং সমন্বয় লগ করুন।</p>
+                </div>
+                <div className="flex gap-2 items-center shrink-0">
+                  <button className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 transition-colors cursor-pointer">
+                    <ArrowRightLeft size={14} /> স্টক ট্রান্সফার
+                  </button>
+                  <button className="flex items-center gap-1.5 bg-[#2e7d32] text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-emerald-700 transition-colors cursor-pointer">
+                    <SlidersHorizontal size={14} /> স্টক সমন্বয়
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 md:p-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                <div className="border border-slate-100 rounded-2xl p-4 md:p-5 bg-white">
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                        <Building size={16} />
+                      </div>
+                      <h4 className="font-extrabold text-slate-800">ওয়ারহাউস স্টক ব্যালেন্স</h4>
+                    </div>
+                    <span className="bg-slate-100 text-slate-500 px-2 py-1 rounded text-[10px] font-bold">লাইভ স্টক সংখ্যা</span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {products.map(product => {
+                      const totalStock = product.stock || 0;
+                      return (
+                        <div key={product.id} className="border border-slate-100 rounded-xl p-4 bg-slate-50/50">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h5 className="font-bold text-slate-800 text-sm">{product.name}</h5>
+                              <span className="text-xs text-slate-400 font-mono tracking-wider uppercase mt-1 block">{product.article || `PRD-${product.id}`}</span>
+                            </div>
+                            <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-bold">মোট: {totalStock.toLocaleString('bn-BD')}</span>
+                          </div>
+
+                          <div className="bg-white border border-slate-100 rounded-xl divide-y divide-slate-100">
+                            <div className="flex justify-between items-center p-3">
+                              <span className="text-sm font-bold text-slate-500">সেন্ট্রাল ওয়্যারহাউস</span>
+                              <span className="font-mono text-sm font-bold text-slate-700">0</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3">
+                              <span className="text-sm font-bold text-slate-500">প্রধান সেলফ</span>
+                              <span className="font-mono text-sm font-bold text-slate-700">{totalStock}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3">
+                              <span className="text-sm font-bold text-slate-500">চট্টগ্রাম আউটলেট</span>
+                              <span className="font-mono text-sm font-bold text-slate-700">0</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

@@ -349,15 +349,50 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   // Courier Tab States
   const [courierSearch, setCourierSearch] = useState('');
-  const [courierHistory, setCourierHistory] = useState<any[]>([]);
+  const [courierHistory, setCourierHistory] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('mega_courier_history');
+      return stored ? JSON.parse(stored) : [];
+    }
+    return [];
+  });
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mega_courier_history', JSON.stringify(courierHistory));
+    }
+  }, [courierHistory]);
+
   const [isSyncing, setIsSyncing] = useState(false);
   const handleSyncCourier = async () => {
     setIsSyncing(true);
     try {
-      const res = await fetch('/api/steadfast/sync_status', { method: 'POST' });
-      const data = await res.json();
-      if (data.history) {
-        setCourierHistory(data.history);
+      const updatedHistory = [...courierHistory];
+      let updatedCount = 0;
+      for (let i = 0; i < updatedHistory.length; i++) {
+         const booking = updatedHistory[i];
+         if (booking.status !== 'delivered' && booking.status !== 'cancelled') {
+            try {
+                const response = await fetch(`https://portal.packzy.com/api/v1/status_by_cid/${booking.consignment_id}`, {
+                   headers: {
+                      "Api-Key": "2p80tiyscewtjoczqbqy9fcugkhpocvz",
+                      "Secret-Key": "y0i0bp251lyktq4vx8fwcr2l"
+                   }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 200 && data.delivery_status) {
+                        updatedHistory[i].status = data.delivery_status.toLowerCase();
+                        updatedCount++;
+                    }
+                }
+            } catch (err) {
+                console.log("Error syncing:", err);
+            }
+         }
+      }
+      if (updatedCount > 0) {
+         setCourierHistory(updatedHistory);
       }
     } catch (err) {
       console.error(err);
@@ -366,19 +401,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-
   // Fetch courier history
   useEffect(() => {
-    if (activeTab === 'courier') {
-      fetch('/api/steadfast/history')
-        .then(res => res.json())
-        .then(data => {
-          if (data.history) {
-            setCourierHistory(data.history);
-          }
-        })
-        .catch(err => console.error(err));
-    }
+    // Loaded from localStorage
   }, [activeTab]);
   const [isCourierBookingOpen, setIsCourierBookingOpen] = useState(false);
   const [autoBookingResult, setAutoBookingResult] = useState<any | null>(null);
@@ -4583,9 +4608,11 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   }
                   
                   try {
-                    const response = await fetch('/api/steadfast/create_order', {
+                    const response = await fetch('https://portal.packzy.com/api/v1/create_order', {
                       method: 'POST',
                       headers: {
+                        'Api-Key': '2p80tiyscewtjoczqbqy9fcugkhpocvz',
+                        'Secret-Key': 'y0i0bp251lyktq4vx8fwcr2l',
                         'Content-Type': 'application/json'
                       },
                       body: JSON.stringify({
@@ -5147,9 +5174,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                            return;
                         }
                         try {
-                          const response = await fetch('/api/steadfast/create_order', {
+                          const response = await fetch('https://portal.packzy.com/api/v1/create_order', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                              'Api-Key': '2p80tiyscewtjoczqbqy9fcugkhpocvz',
+                              'Secret-Key': 'y0i0bp251lyktq4vx8fwcr2l',
+                              'Content-Type': 'application/json'
+                            },
                             body: JSON.stringify({
                               invoice: bookingOrder.id,
                               recipient_name: bookingOrder.customerName,
@@ -5161,6 +5192,18 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           });
                           const data = await response.json();
                           if (data.status === 200 || data.consignment_id) {
+                            const newBooking = {
+                              consignment_id: data.consignment?.consignment_id || data.consignment_id,
+                              tracking_code: data.consignment?.tracking_code || data.tracking_code || '',
+                              tracking_link: data.consignment?.tracking_link || data.tracking_link || '',
+                              status: 'pending',
+                              customer_name: bookingOrder.customerName,
+                              customer_phone: bookingOrder.phone,
+                              amount: bookingOrder.total,
+                              invoice: bookingOrder.id,
+                              created_at: new Date().toISOString()
+                            };
+                            setCourierHistory(prev => [newBooking, ...prev]);
                             setBookingResult({
                               status: 'Success',
                               consignment_id: data.consignment?.consignment_id || data.consignment_id,

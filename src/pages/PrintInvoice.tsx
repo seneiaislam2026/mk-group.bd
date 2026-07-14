@@ -137,11 +137,11 @@ export default function PrintInvoice() {
               <tbody>
                 <tr>
                   <td className="border border-black px-2 py-1 bg-gray-50">Invoice No:</td>
-                  <td className="border border-black px-2 py-1">{formatInvoiceId(invoiceData.consignmentId || invoiceData.id || '')}</td>
+                  <td className="border border-black px-2 py-1">{invoiceData.consignmentId || invoiceData.id || ''}</td>
                 </tr>
                 <tr>
                   <td className="border border-black px-2 py-1 bg-gray-50">ID:</td>
-                  <td className="border border-black px-2 py-1">{formatInvoiceId(invoiceData.id || '')}</td>
+                  <td className="border border-black px-2 py-1">{invoiceData.id || ''}</td>
                 </tr>
                 <tr>
                   <td className="border border-black px-2 py-1 bg-gray-50">Name:</td>
@@ -232,7 +232,6 @@ export default function PrintInvoice() {
                     Terms &amp; Conditions:
                   </div>
                   <ul className="list-decimal pl-3.5 m-0 space-y-1 text-slate-800 font-bold">
-                    <li>বিক্রিত মাল ফেরত বা পরিবর্তন করা হয় না।</li>
                     <li>যেকোনো প্রয়োজনে আমাদের যোগাযোগ নম্বরে যোগাযোগ করুন।</li>
                     <li>আমাদের উপর আস্থা রাখার জন্য ধন্যবাদ।</li>
                   </ul>

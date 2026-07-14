@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserCheck, Camera, Plus, Search, CheckCircle, XCircle, Clock, CalendarDays, Upload, X, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { UserCheck, Camera, Plus, Search, CheckCircle, XCircle, Clock, CalendarDays, Upload, X, ChevronLeft, ChevronRight, User, Trash2 } from 'lucide-react';
+import { db, staffCollection, attendanceCollection } from '../../lib/firebase';
+import { onSnapshot, setDoc, deleteDoc, doc } from 'firebase/firestore';
 
 interface Staff {
   id: string;
@@ -29,12 +31,66 @@ export default function StaffPortal() {
   const [viewingMonth, setViewingMonth] = useState(new Date());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Real-time Firestore sync and LocalStorage migration for staff list and attendance
   useEffect(() => {
+    // 1. Migrate localStorage data to Firestore if present
     const storedStaff = localStorage.getItem('mega_staff');
-    if (storedStaff) setStaffList(JSON.parse(storedStaff));
-    
+    if (storedStaff) {
+      try {
+        const localStaff = JSON.parse(storedStaff);
+        if (Array.isArray(localStaff) && localStaff.length > 0) {
+          localStaff.forEach(async (item) => {
+            if (item && item.id) {
+              await setDoc(doc(staffCollection, item.id), item);
+            }
+          });
+          localStorage.removeItem('mega_staff');
+        }
+      } catch (err) {
+        console.error('Error migrating staff to Firestore:', err);
+      }
+    }
+
     const storedAttendance = localStorage.getItem('mega_attendance');
-    if (storedAttendance) setAttendance(JSON.parse(storedAttendance));
+    if (storedAttendance) {
+      try {
+        const localAttendance = JSON.parse(storedAttendance);
+        if (Array.isArray(localAttendance) && localAttendance.length > 0) {
+          localAttendance.forEach(async (item) => {
+            if (item && item.id) {
+              await setDoc(doc(attendanceCollection, item.id), item);
+            }
+          });
+          localStorage.removeItem('mega_attendance');
+        }
+      } catch (err) {
+        console.error('Error migrating attendance to Firestore:', err);
+      }
+    }
+
+    // 2. Setup real-time listeners
+    const unsubStaff = onSnapshot(staffCollection, (snapshot) => {
+      const list: Staff[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as Staff);
+      });
+      // Sort by joinDate descending (newest first)
+      list.sort((a, b) => new Date(b.joinDate || 0).getTime() - new Date(a.joinDate || 0).getTime());
+      setStaffList(list);
+    });
+
+    const unsubAttendance = onSnapshot(attendanceCollection, (snapshot) => {
+      const records: AttendanceRecord[] = [];
+      snapshot.forEach((doc) => {
+        records.push(doc.data() as AttendanceRecord);
+      });
+      setAttendance(records);
+    });
+
+    return () => {
+      unsubStaff();
+      unsubAttendance();
+    };
   }, []);
 
   
@@ -73,7 +129,23 @@ export default function StaffPortal() {
     return { records: monthlyRecords, present, absent, leave };
   };
 
-  const handleAddStaff = (e: React.FormEvent) => {
+  const handleDeleteStaff = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('স্টাফ রেকর্ডটি মুছে ফেলতে চান?')) {
+      try {
+        await deleteDoc(doc(staffCollection, id));
+        // Also delete attendance records of this staff member
+        const attendanceToDelete = attendance.filter(a => a.staffId === id);
+        for (const r of attendanceToDelete) {
+          await deleteDoc(doc(attendanceCollection, r.id));
+        }
+      } catch (err) {
+        console.error('Error deleting staff:', err);
+      }
+    }
+  };
+
+  const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaff.name || !newStaff.mobile || !newStaff.designation) {
       alert("সব তথ্য পূরণ করুন");
@@ -89,11 +161,13 @@ export default function StaffPortal() {
       joinDate: new Date().toISOString()
     };
 
-    const updated = [staff, ...staffList];
-    setStaffList(updated);
-    localStorage.setItem('mega_staff', JSON.stringify(updated));
-    setNewStaff({ name: '', mobile: '', designation: '', photo: '' });
-    setShowAddModal(false);
+    try {
+      await setDoc(doc(staffCollection, staff.id), staff);
+      setNewStaff({ name: '', mobile: '', designation: '', photo: '' });
+      setShowAddModal(false);
+    } catch (err) {
+      console.error('Error adding staff:', err);
+    }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,25 +181,28 @@ export default function StaffPortal() {
     }
   };
 
-  const markAttendance = (staffId: string, status: 'present' | 'absent' | 'leave') => {
+  const markAttendance = async (staffId: string, status: 'present' | 'absent' | 'leave') => {
     const existingIndex = attendance.findIndex(a => a.staffId === staffId && a.date === selectedDate);
     
-    let newAttendance = [...attendance];
-    
-    if (existingIndex >= 0) {
-      newAttendance[existingIndex] = { ...newAttendance[existingIndex], status, timestamp: new Date().toISOString() };
-    } else {
-      newAttendance.push({
-        id: Math.random().toString(36).substr(2, 9),
-        staffId,
-        date: selectedDate,
-        status,
-        timestamp: new Date().toISOString()
-      });
+    try {
+      if (existingIndex >= 0) {
+        const record = attendance[existingIndex];
+        const updatedRecord = { ...record, status, timestamp: new Date().toISOString() };
+        await setDoc(doc(attendanceCollection, record.id), updatedRecord);
+      } else {
+        const recordId = Math.random().toString(36).substr(2, 9);
+        const newRecord: AttendanceRecord = {
+          id: recordId,
+          staffId,
+          date: selectedDate,
+          status,
+          timestamp: new Date().toISOString()
+        };
+        await setDoc(doc(attendanceCollection, recordId), newRecord);
+      }
+    } catch (err) {
+      console.error('Error marking attendance:', err);
     }
-    
-    setAttendance(newAttendance);
-    localStorage.setItem('mega_attendance', JSON.stringify(newAttendance));
   };
 
   const getAttendanceStatus = (staffId: string) => {

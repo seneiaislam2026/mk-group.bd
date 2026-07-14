@@ -18,3 +18,5 @@ export const ordersCollection = collection(db, "orders");
 export const productsCollection = collection(db, "products");
 export const courierHistoryCollection = collection(db, "courierHistory");
 export const notificationsCollection = collection(db, "notifications");
+export const staffCollection = collection(db, "staff");
+export const attendanceCollection = collection(db, "attendance");

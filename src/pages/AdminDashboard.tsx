@@ -51,6 +51,8 @@ import { FileText,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product, Investor } from '../types';
+import { db, courierHistoryCollection } from '../lib/firebase';
+import { onSnapshot, setDoc, doc } from 'firebase/firestore';
 
 
 const safeJSONParse = (data, fallback) => {
@@ -365,19 +367,41 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   // Courier Tab States
   const [courierSearch, setCourierSearch] = useState('');
-  const [courierHistory, setCourierHistory] = useState<any[]>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('mega_courier_history');
-      return (stored && safeJSONParse(stored, null)) || [];
-    }
-    return [];
-  });
+  const [courierHistory, setCourierHistory] = useState<any[]>([]);
   
+  // Real-time Firestore sync and LocalStorage migration for courier history
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('mega_courier_history', JSON.stringify(courierHistory));
+    // 1. Migrate localStorage data to Firestore if present
+    const stored = localStorage.getItem('mega_courier_history');
+    if (stored) {
+      const localHistory = safeJSONParse(stored, []);
+      if (Array.isArray(localHistory) && localHistory.length > 0) {
+        localHistory.forEach(async (item) => {
+          if (item && item.consignment_id) {
+            try {
+              await setDoc(doc(courierHistoryCollection, item.consignment_id.toString()), item);
+            } catch (err) {
+              console.error('Error migrating local courier history to Firestore:', err);
+            }
+          }
+        });
+        localStorage.removeItem('mega_courier_history');
+      }
     }
-  }, [courierHistory]);
+
+    // 2. Setup real-time listener
+    const unsub = onSnapshot(courierHistoryCollection, (snapshot) => {
+      const history: any[] = [];
+      snapshot.forEach((doc) => {
+        history.push(doc.data());
+      });
+      // Sort by created_at descending
+      history.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      setCourierHistory(history);
+    });
+
+    return () => unsub();
+  }, []);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const handleSyncCourier = async () => {
@@ -416,7 +440,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
          }
       }
       if (updatedCount > 0) {
-         setCourierHistory(updatedHistory);
+         // Save updated status bookings to Firestore
+         for (const booking of updatedHistory) {
+           if (booking && booking.consignment_id) {
+             await setDoc(doc(courierHistoryCollection, booking.consignment_id.toString()), booking);
+           }
+         }
          if (newTransactions.length > 0) {
              setTransactions(prev => [...newTransactions, ...prev]);
              addNotification('আয় আপডেট 💰', 'ডেলিভারি সম্পন্ন হওয়া অর্ডারগুলোর টাকা আয় অপশনে যুক্ত হয়েছে!');
@@ -2743,13 +2772,27 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               </button>
                               
                               {order.status !== 'Completed' && (
-                                <button 
-                                  onClick={() => setBookingOrder(order)}
-                                  className="text-white hover:bg-emerald-800 bg-[#1b4332] px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer"
-                                  title="কুরিয়ার বুকিং করুন"
-                                >
-                                  <Truck size={10} /> বুকিং
-                                </button>
+                                courierHistory.some(c => c.invoice === order.id) ? (
+                                  <button 
+                                    onClick={() => {
+                                      const bookingItem = courierHistory.find(c => c.invoice === order.id);
+                                      const consignmentId = bookingItem?.consignment_id || bookingItem?.tracking_code || '';
+                                      window.open(`/print-invoice?consignmentId=${consignmentId}&orderId=${encodeURIComponent(order.id)}&name=${encodeURIComponent(order.customerName)}&phone=${encodeURIComponent(order.phone)}&amount=${order.total}`, "_blank");
+                                    }}
+                                    className="text-white hover:bg-emerald-700 bg-emerald-600 px-2.5 py-1 rounded text-[10px] font-black flex items-center gap-1 shrink-0 cursor-pointer shadow-sm"
+                                    title="প্রিন্ট ইনভয়েস"
+                                  >
+                                    <Download size={10} /> প্রিন্ট
+                                  </button>
+                                ) : (
+                                  <button 
+                                    onClick={() => setBookingOrder(order)}
+                                    className="text-white hover:bg-emerald-800 bg-[#1b4332] px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                                    title="কুরিয়ার বুকিং করুন"
+                                  >
+                                    <Truck size={10} /> বুকিং
+                                  </button>
+                                )
                               )}
 
                               <select 
@@ -2855,12 +2898,26 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             বিবরণ
                           </button>
                           {order.status !== 'Completed' && (
-                            <button 
-                              onClick={() => setBookingOrder(order)}
-                              className="bg-[#1b4332] text-white hover:bg-emerald-800 px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-colors shadow-sm cursor-pointer shrink-0"
-                            >
-                              <Truck size={10} /> বুকিং
-                            </button>
+                            courierHistory.some(c => c.invoice === order.id) ? (
+                              <button 
+                                onClick={() => {
+                                  const bookingItem = courierHistory.find(c => c.invoice === order.id);
+                                  const consignmentId = bookingItem?.consignment_id || bookingItem?.tracking_code || '';
+                                  window.open(`/print-invoice?consignmentId=${consignmentId}&orderId=${encodeURIComponent(order.id)}&name=${encodeURIComponent(order.customerName)}&phone=${encodeURIComponent(order.phone)}&amount=${order.total}`, '_blank');
+                                }}
+                                className="text-white hover:bg-emerald-700 bg-emerald-600 px-2 py-1 rounded text-[10px] font-black flex items-center gap-1 shrink-0 cursor-pointer shadow-sm"
+                                title="প্রিন্ট ইনভয়েস"
+                              >
+                                <Download size={10} /> প্রিন্ট
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={() => setBookingOrder(order)}
+                                className="bg-[#1b4332] text-white hover:bg-emerald-800 px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-colors shadow-sm cursor-pointer shrink-0"
+                              >
+                                <Truck size={10} /> বুকিং
+                              </button>
+                            )
                           )}
                           <select 
                             value={order.status}
@@ -4843,12 +4900,20 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                 finalName = product.name;
                                 if (manualSelectedPrice === '') {
                                     finalPrice = product.discountedPrice || product.originalPrice;
+                                    if (!finalPrice) {
+                                        alert('এই পণ্যের মূল্য ডাটাবেজে উল্লেখ নেই। দয়া করে একটি কাস্টম মূল্য লিখুন।');
+                                        return;
+                                    }
                                 }
                             }
                         } else {
                             // Allow custom article adding
                             if (!manualArticleSearch.trim()) {
                                 alert('অনুগ্রহ করে পণ্যের আর্টিকেল বা নাম লিখুন।');
+                                return;
+                            }
+                            if (manualSelectedPrice === '') {
+                                alert('দয়া করে এই কাস্টম পণ্যের মূল্য লিখুন।');
                                 return;
                             }
                             finalId = 'custom-' + Date.now();
@@ -5224,7 +5289,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     const data = await response.json();
                     
                     if (data.status === 200 || data.consignment_id) {
-                      setCourierHistory(prev => [{
+                      const newBooking = {
                         consignment_id: data.consignment?.consignment_id || data.consignment_id,
                         tracking_code: data.consignment?.tracking_code || data.tracking_code || '',
                         tracking_link: data.consignment?.tracking_link || data.tracking_link || '',
@@ -5233,7 +5298,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         amount: courierBookingData.cod_amount,
                         status: 'pending',
                         created_at: new Date().toISOString()
-                      }, ...prev]);
+                      };
+                      await setDoc(doc(courierHistoryCollection, newBooking.consignment_id.toString()), newBooking);
                       setAutoBookingResult({
                         status: 'Success',
                         consignment_id: data.consignment?.consignment_id || data.consignment_id,
@@ -5692,12 +5758,25 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               {/* Actions */}
               <div className="pt-4 border-t border-slate-100 flex flex-wrap gap-2 justify-end shrink-0 select-none">
                 {selectedOrder.status !== 'Completed' && (
-                  <button 
-                    onClick={() => { setBookingOrder(selectedOrder); setSelectedOrder(null); }}
-                    className="px-4 py-2 bg-[#1b4332] hover:bg-emerald-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1 transition-all shadow-sm cursor-pointer"
-                  >
-                    <Truck size={13} /> কুরিয়ার বুকিং করুন
-                  </button>
+                  courierHistory.some(c => c.invoice === selectedOrder.id) ? (
+                    <button 
+                      onClick={() => {
+                        const bookingItem = courierHistory.find(c => c.invoice === selectedOrder.id);
+                        const consignmentId = bookingItem?.consignment_id || bookingItem?.tracking_code || '';
+                        window.open(`/print-invoice?consignmentId=${consignmentId}&orderId=${encodeURIComponent(selectedOrder.id)}&name=${encodeURIComponent(selectedOrder.customerName)}&phone=${encodeURIComponent(selectedOrder.phone)}&amount=${selectedOrder.total}`, '_blank');
+                      }}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                    >
+                      <Download size={13} /> প্রিন্ট ইনভয়েস
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => { setBookingOrder(selectedOrder); setSelectedOrder(null); }}
+                      className="px-4 py-2 bg-[#1b4332] hover:bg-emerald-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1 transition-all shadow-sm cursor-pointer"
+                    >
+                      <Truck size={13} /> কুরিয়ার বুকিং করুন
+                    </button>
+                  )
                 )}
                 <button 
                   onClick={() => setSelectedOrder(null)}
@@ -5832,7 +5911,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               invoice: bookingOrder.id,
                               created_at: new Date().toISOString()
                             };
-                            setCourierHistory(prev => [newBooking, ...prev]);
+                            await setDoc(doc(courierHistoryCollection, newBooking.consignment_id.toString()), newBooking);
                             setBookingResult({
                               status: 'Success',
                               consignment_id: data.consignment?.consignment_id || data.consignment_id,
@@ -5840,16 +5919,6 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               invoice: bookingOrder.id,
                               cod_amount: bookingOrder.total
                             });
-                            setCourierHistory(prev => [{
-                              consignment_id: data.consignment?.consignment_id || data.consignment_id,
-                              tracking_code: data.consignment?.tracking_code || data.tracking_code || '',
-                        tracking_link: data.consignment?.tracking_link || data.tracking_link || '',
-                              customer_name: bookingOrder.customerName,
-                              customer_phone: bookingOrder.phone,
-                              amount: bookingOrder.total,
-                              status: 'pending',
-                              created_at: new Date().toISOString()
-                            }, ...prev]);
                           } else {
                             alert('বুকিং ব্যর্থ হয়েছে। এরর: ' + (data.message || 'অজানা ত্রুটি'));
                           }

@@ -85,7 +85,7 @@ export default function Layout() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen relative">
+    <div className={`flex flex-col ${currentView === 'admin' ? 'h-screen overflow-hidden' : 'min-h-screen'} relative`}>
       <Helmet>
         <title>এম.কে.গ্রুপ | MK Group</title>
         <meta name="description" content="এম.কে.গ্রুপ - আপনার পছন্দের সকল সামগ্রী।" />

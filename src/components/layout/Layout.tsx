@@ -13,6 +13,7 @@ import InvestorPortalModal from '../ui/InvestorPortalModal';
 import TopBannerNotification from '../ui/TopBannerNotification';
 import PrintInvoice from '../../pages/PrintInvoice';
 import PrintAgreement from '../../pages/PrintAgreement';
+import PrintSticker from '../../pages/PrintSticker';
 import { MessageCircle } from 'lucide-react';
 
 export default function Layout() {
@@ -36,9 +37,10 @@ export default function Layout() {
 
   // Simple state-based routing router for demonstration since we want 
   // both storefront and admin in one app without complex routing setup
-  const [currentView, setCurrentView] = useState<'store' | 'admin' | 'landing' | 'print' | 'print-agreement'>(() => {
+  const [currentView, setCurrentView] = useState<'store' | 'admin' | 'landing' | 'print' | 'print-agreement' | 'print-sticker'>(() => {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-invoice')) return 'print';
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-agreement')) return 'print-agreement';
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-sticker')) return 'print-sticker';
     if (typeof window === 'undefined') return 'store';
     if (getProductIdFromUrl()) return 'landing';
     return 'store';
@@ -59,6 +61,8 @@ export default function Layout() {
       if (window.location.hash === '#admin') {
         setCurrentView('admin');
         setLandingProductId(null);
+      } else if (window.location.pathname.startsWith('/print-sticker')) {
+        setCurrentView('print-sticker');
       } else if (window.location.pathname.startsWith('/print-agreement')) {
         setCurrentView('print-agreement');
       } else if (window.location.pathname.startsWith('/print-invoice')) {
@@ -112,6 +116,14 @@ export default function Layout() {
             <meta name="robots" content="noindex, nofollow" />
           </Helmet>
           <PrintInvoice />
+        </>
+      ) : currentView === 'print-sticker' ? (
+        <>
+          <Helmet>
+            <title>স্টিকার প্রিন্ট | এম.কে.গ্রুপ</title>
+            <meta name="robots" content="noindex, nofollow" />
+          </Helmet>
+          <PrintSticker />
         </>
       ) : currentView === 'admin' ? (
         <>

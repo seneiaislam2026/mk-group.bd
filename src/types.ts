@@ -14,6 +14,7 @@ export interface Product {
   stock?: number;
   article?: string;
   isHidden?: boolean;
+  piecesPerBox?: number;
 }
 
 export interface Category {

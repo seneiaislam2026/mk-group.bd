@@ -22,7 +22,7 @@ export default function Footer() {
           </p>
           <div className="flex gap-4">
             <a 
-              href="https://www.facebook.com/share/1CjARoWxZh/" 
+              href="https://www.facebook.com/profile.php?id=61579250185692" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="w-10 h-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors"

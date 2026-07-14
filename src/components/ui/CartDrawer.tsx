@@ -29,9 +29,9 @@ export default function CartDrawer() {
     setIsCheckingOut(true);
   };
 
-  const handleCheckoutSubmit = (e: React.FormEvent) => {
+  const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trackingId = placeOrder(formData.name, formData.phone, formData.address);
+    const trackingId = await placeOrder(formData.name, formData.phone, formData.address);
     setSuccessTrackingId(trackingId);
     setIsCheckoutSuccess(true);
     clearCart();

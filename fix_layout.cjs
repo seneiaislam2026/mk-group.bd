@@ -1,44 +1,40 @@
 const fs = require('fs');
-const file = 'src/components/layout/Layout.tsx';
-let content = fs.readFileSync(file, 'utf8');
+let code = fs.readFileSync('src/components/layout/Layout.tsx', 'utf8');
 
-const importTarget = `import TopBannerNotification from '../ui/TopBannerNotification';`;
-const newImport = `import TopBannerNotification from '../ui/TopBannerNotification';\nimport PrintInvoice from '../../pages/PrintInvoice';`;
+code = code.replace(
+  `import PrintAgreement from '../../pages/PrintAgreement';`,
+  `import PrintAgreement from '../../pages/PrintAgreement';\nimport PrintSticker from '../../pages/PrintSticker';`
+);
 
-if (!content.includes('import PrintInvoice')) {
-  content = content.replace(importTarget, newImport);
-}
+code = code.replace(
+  `const [currentView, setCurrentView] = useState<'store' | 'admin' | 'landing' | 'print' | 'print-agreement'>(() => {`,
+  `const [currentView, setCurrentView] = useState<'store' | 'admin' | 'landing' | 'print' | 'print-agreement' | 'print-sticker'>(() => {`
+);
 
-const renderTarget = `export default function Layout() {`;
-const routerTarget = `  // Helper to extract product ID from hash or query parameters`;
+code = code.replace(
+  `if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-agreement')) return 'print-agreement';`,
+  `if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-agreement')) return 'print-agreement';\n    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-sticker')) return 'print-sticker';`
+);
 
-const stateTarget = `  const [currentView, setCurrentView] = useState<'store' | 'admin' | 'landing'>(() => {`;
-const newStateTarget = `  const [currentView, setCurrentView] = useState<'store' | 'admin' | 'landing' | 'print'>(() => {
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-invoice')) return 'print';`;
+code = code.replace(
+  `} else if (window.location.pathname.startsWith('/print-agreement')) {`,
+  `} else if (window.location.pathname.startsWith('/print-sticker')) {\n        setCurrentView('print-sticker');\n      } else if (window.location.pathname.startsWith('/print-agreement')) {`
+);
 
-content = content.replace(stateTarget, newStateTarget);
-
-const returnTarget = `      {currentView === 'admin' ? (`;
-const newReturnTarget = `      {currentView === 'print' ? (
+code = code.replace(
+  `<PrintInvoice />
+        </>`,
+  `<PrintInvoice />
+        </>
+      ) : currentView === 'print-sticker' ? (
         <>
           <Helmet>
-            <title>ইনভয়েস প্রিন্ট | এম.কে.গ্রুপ</title>
+            <title>স্টিকার প্রিন্ট | এম.কে.গ্রুপ</title>
             <meta name="robots" content="noindex, nofollow" />
           </Helmet>
-          <PrintInvoice />
-        </>
-      ) : currentView === 'admin' ? (`;
+          <PrintSticker />
+        </>`
+);
 
-content = content.replace(returnTarget, newReturnTarget);
-
-const effectTarget = `        setLandingProductId(null);
-      } else if (prodId) {`;
-const newEffectTarget = `        setLandingProductId(null);
-      } else if (window.location.pathname.startsWith('/print-invoice')) {
-        setCurrentView('print');
-      } else if (prodId) {`;
-
-content = content.replace(effectTarget, newEffectTarget);
-
-fs.writeFileSync(file, content);
-console.log('Fixed layout routing');
+fs.writeFileSync('src/components/layout/Layout.tsx', code);
+console.log('Fixed Layout for PrintSticker.');

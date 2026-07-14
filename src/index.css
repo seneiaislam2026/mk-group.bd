@@ -68,3 +68,11 @@
     scrollbar-width: none;  /* Firefox */
   }
 }
+
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}

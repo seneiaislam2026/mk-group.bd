@@ -1,0 +1,22 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs } from "firebase/firestore";
+import fs from 'fs';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBDeb4k7UEI8w_cbc1KE5vX-F1pr2eh9u4",
+  authDomain: "turnkey-dock-q6tp2.firebaseapp.com",
+  projectId: "turnkey-dock-q6tp2",
+  storageBucket: "turnkey-dock-q6tp2.firebasestorage.app",
+  messagingSenderId: "441494044485",
+  appId: "1:441494044485:web:b6b12d8b757466bc0ac82c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app, "ai-studio-mkgroup-5b76dc0c-2a1b-456a-8b16-162e54df4398");
+
+async function run() {
+  const querySnapshot = await getDocs(collection(db, "products"));
+  console.log(`Found ${querySnapshot.size} products.`);
+  process.exit(0);
+}
+run();

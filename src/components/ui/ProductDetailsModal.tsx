@@ -79,9 +79,9 @@ export default function ProductDetailsModal() {
             )}
           </div>
 
-          <div className="mb-8 text-gray-600 text-sm leading-relaxed">
-            {selectedProduct.description || '১০০% অরিজিনাল এবং প্রিমিয়াম পণ্যের নিশ্চয়তা। সেরা মানের পণ্যটি আপনার দোরগোড়ায় পৌঁছে দেওয়া হচ্ছে।'}
-          </div>
+          {selectedProduct.description && <div className="mb-8 text-gray-600 text-sm leading-relaxed">
+            {selectedProduct.description}
+          </div>}
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8">
             <div className="flex items-center justify-between sm:justify-start gap-3">

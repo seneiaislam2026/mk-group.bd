@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { db, ordersCollection, productsCollection, notificationsCollection } from '../lib/firebase';
+import { onSnapshot, setDoc, deleteDoc, doc, updateDoc, collection } from 'firebase/firestore';
 import { Product } from '../types';
 import { mockProducts } from '../data/mock';
 
@@ -49,8 +51,8 @@ interface CartContextType {
 
   // Persistent Orders management
   orders: Order[];
-  placeOrder: (customerName: string, phone: string, address: string) => string;
-  placeDirectOrder: (customerName: string, phone: string, address: string, product: Product, quantity: number) => string;
+  placeOrder: (customerName: string, phone: string, address: string) => Promise<string>;
+  placeDirectOrder: (customerName: string, phone: string, address: string, product: Product, quantity: number) => Promise<string>;
   updateOrderStatus: (id: string, status: 'Pending' | 'Confirmed' | 'Shipped' | 'Completed' | 'Cancelled') => void;
   deleteOrder: (id: string) => void;
 
@@ -174,20 +176,6 @@ const playAddToCartSound = () => {
   }
 };
 
-const getStoredProducts = (): Product[] => {
-  if (!isClient) return mockProducts;
-  const stored = localStorage.getItem('mega_products');
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  // Safe default initialization of products in localStorage
-  localStorage.setItem('mega_products', JSON.stringify(mockProducts));
-  return mockProducts;
-};
 
 const initialMockOrders: Order[] = [
   {
@@ -230,27 +218,13 @@ const initialMockOrders: Order[] = [
   }
 ];
 
-const getStoredOrders = (): Order[] => {
-  if (!isClient) return initialMockOrders;
-  const stored = localStorage.getItem('mega_orders');
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  // Initialize in localStorage if empty
-  localStorage.setItem('mega_orders', JSON.stringify(initialMockOrders));
-  return initialMockOrders;
-};
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [products, setProducts] = useState<Product[]>(getStoredProducts);
-  const [orders, setOrders] = useState<Order[]>(getStoredOrders);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   
   // Custom Cart Toast state for beautiful feedback when adding items
   const [cartToast, setCartToast] = useState<{
@@ -260,6 +234,49 @@ export function CartProvider({ children }: { children: ReactNode }) {
     productPrice: number;
     quantity: number;
   } | null>(null);
+
+
+  // Sync with Firebase
+  useEffect(() => {
+    if (!isClient) return;
+
+    const unsubProducts = onSnapshot(productsCollection, (snapshot) => {
+      const prods: Product[] = [];
+      snapshot.forEach(doc => {
+        prods.push({ ...doc.data(), id: doc.id } as Product);
+      });
+      if (prods.length === 0) {
+          // Add default mock products if empty
+          mockProducts.forEach(async (p) => {
+              await setDoc(doc(productsCollection, p.id), p);
+          });
+      } else {
+          setProducts(prods);
+      }
+    });
+
+    const unsubOrders = onSnapshot(ordersCollection, (snapshot) => {
+      const ords: Order[] = [];
+      snapshot.forEach(doc => {
+        ords.push({ ...doc.data(), id: doc.id } as Order);
+      });
+      setOrders(ords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    });
+
+    const unsubNotifications = onSnapshot(notificationsCollection, (snapshot) => {
+      const notifs: AppNotification[] = [];
+      snapshot.forEach(doc => {
+        notifs.push({ ...doc.data(), id: doc.id } as AppNotification);
+      });
+      setNotifications(notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+    });
+
+    return () => {
+      unsubProducts();
+      unsubOrders();
+      unsubNotifications();
+    };
+  }, [isClient]);
 
   // Auto-dismiss the toast after 3 seconds
   useEffect(() => {
@@ -271,15 +288,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cartToast]);
 
   // Notifications state
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
-    if (!isClient) return [];
-    try {
-      const stored = localStorage.getItem('mega_notifications');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   // Sound and Desktop Push Settings
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
@@ -294,26 +303,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return 'unsupported';
   });
 
-  // Persist notifications
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('mega_notifications', JSON.stringify(notifications));
-    }
-  }, [notifications]);
 
-  // Sync products to local storage
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('mega_products', JSON.stringify(products));
-    }
-  }, [products]);
 
-  // Sync orders to local storage
-  useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('mega_orders', JSON.stringify(orders));
-    }
-  }, [orders]);
 
   // Persist sound config
   useEffect(() => {
@@ -375,42 +366,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Cross-tab real-time listener using 'storage' event.
-  // This enables instant notification trigger if the admin is on another tab/window!
-  useEffect(() => {
-    if (!isClient) return;
-
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'mega_orders' && e.newValue) {
-        try {
-          const parsedOrders = JSON.parse(e.newValue) as Order[];
-          // Find orders in the sync data that aren't in current state
-          if (parsedOrders.length > orders.length) {
-            const freshOrders = parsedOrders.filter(po => !orders.some(o => o.id === po.id));
-            if (freshOrders.length > 0) {
-              setOrders(parsedOrders);
-              // Notify user of latest orders in real-time
-              freshOrders.forEach(order => {
-                triggerOrderNotification(order);
-              });
-            }
-          } else {
-            setOrders(parsedOrders);
-          }
-        } catch (err) {
-          console.error('Storage parsing error for orders sync: ', err);
-        }
-      }
-      if (e.key === 'mega_products' && e.newValue) {
-        try {
-          setProducts(JSON.parse(e.newValue));
-        } catch {}
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [orders, soundEnabled]);
 
   const addToCart = (product: Product, quantity: number = 1) => {
     setCartItems(prev => {
@@ -462,8 +417,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
 
   // Order submission
-  const placeOrder = (customerName: string, phone: string, address: string) => {
-    const trackingId = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
+
+  const placeOrder = async (customerName: string, phone: string, address: string) => {
+    const maxId = orders.reduce((max, o) => {
+      const match = o.id.match(/^Ord-(\d+)$/i);
+      if (match) return Math.max(max, parseInt(match[1], 10));
+      const matchLegacy = o.id.match(/^man-(\d+)$/i);
+      if (matchLegacy) return Math.max(max, parseInt(matchLegacy[1], 10));
+      return max;
+    }, 0);
+    const trackingId = `Ord-${(maxId + 1).toString().padStart(3, '0')}`;
     const newOrder: Order = {
       id: trackingId,
       customerName,
@@ -480,22 +443,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       status: 'Pending'
     };
 
-    setOrders(prev => {
-      const updated = [newOrder, ...prev];
-      // Sync straight away to trigger notifications
-      if (isClient) {
-        localStorage.setItem('mega_orders', JSON.stringify(updated));
-      }
-      return updated;
-    });
-
-    // Fire sound & alert popup immediately
-    triggerOrderNotification(newOrder);
+    try {
+      await setDoc(doc(ordersCollection, newOrder.id), newOrder);
+      triggerOrderNotification(newOrder);
+    } catch (e) {
+      console.error(e);
+    }
     
     return trackingId;
   };
 
-  const placeDirectOrder = (customerName: string, phone: string, address: string, product: Product, quantity: number) => {
+
+  const placeDirectOrder = async (customerName: string, phone: string, address: string, product: Product, quantity: number) => {
     const trackingId = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
     const newOrder: Order = {
       id: trackingId,
@@ -513,92 +472,83 @@ export function CartProvider({ children }: { children: ReactNode }) {
       status: 'Pending'
     };
 
-    setOrders(prev => {
-      const updated = [newOrder, ...prev];
-      if (isClient) {
-        localStorage.setItem('mega_orders', JSON.stringify(updated));
-      }
-      return updated;
-    });
-
-    triggerOrderNotification(newOrder);
+    try {
+      await setDoc(doc(ordersCollection, newOrder.id), newOrder);
+      triggerOrderNotification(newOrder);
+    } catch (e) {
+      console.error(e);
+    }
     
     return trackingId;
   };
 
-  const updateOrderStatus = (id: string, status: 'Pending' | 'Confirmed' | 'Shipped' | 'Completed' | 'Cancelled') => {
-    setOrders(prev => {
-      const updated = prev.map(order => 
-        order.id === id ? { ...order, status } : order
-      );
-      if (isClient) {
-        localStorage.setItem('mega_orders', JSON.stringify(updated));
-      }
-      return updated;
-    });
+
+  const updateOrderStatus = async (id: string, status: 'Pending' | 'Confirmed' | 'Shipped' | 'Completed' | 'Cancelled') => {
+    try {
+      await updateDoc(doc(ordersCollection, id), { status });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const deleteOrder = (id: string) => {
-    setOrders(prev => {
-      const updated = prev.filter(order => order.id !== id);
-      if (isClient) {
-        localStorage.setItem('mega_orders', JSON.stringify(updated));
-      }
-      return updated;
-    });
+
+  const deleteOrder = async (id: string) => {
+    try {
+      await deleteDoc(doc(ordersCollection, id));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Product management actions
-  const addProduct = (newProdData: Omit<Product, 'id' | 'rating' | 'reviews'>) => {
+
+  const addProduct = async (newProdData: Omit<Product, 'id' | 'rating' | 'reviews'>) => {
     const newProduct: Product = {
       ...newProdData,
-      id: `p-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: `p-${Date.now()}`,
       rating: 5.0,
       reviews: 0
     };
-    setProducts(prev => {
-      const updated = [newProduct, ...prev];
-      if (isClient) {
-        localStorage.setItem('mega_products', JSON.stringify(updated));
-      }
-      return updated;
-    });
+    try {
+      await setDoc(doc(productsCollection, newProduct.id), newProduct);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const updateProduct = (updatedProd: Product) => {
-    setProducts(prev => {
-      const updated = prev.map(p => p.id === updatedProd.id ? updatedProd : p);
-      if (isClient) {
-        localStorage.setItem('mega_products', JSON.stringify(updated));
-      }
-      return updated;
-    });
+
+  const updateProduct = async (updatedProd: Product) => {
+    setProducts(prev => prev.map(p => p.id === updatedProd.id ? updatedProd : p));
+    try {
+      await setDoc(doc(productsCollection, updatedProd.id), updatedProd);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(prev => {
-      const updated = prev.filter(p => p.id !== id);
-      if (isClient) {
-        localStorage.setItem('mega_products', JSON.stringify(updated));
-      }
-      return updated;
-    });
+
+  const deleteProduct = async (id: string) => {
+    setProducts(prev => prev.filter(p => p.id !== id));
+    try {
+      await deleteDoc(doc(productsCollection, id));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Add a simulated mock order for admin notification tests
-  const addSimulatedOrder = (simulatedOrder: Order) => {
-    setOrders(prev => {
-      const updated = [simulatedOrder, ...prev];
-      if (isClient) {
-        localStorage.setItem('mega_orders', JSON.stringify(updated));
-      }
-      return updated;
-    });
-    triggerOrderNotification(simulatedOrder);
+
+  const addSimulatedOrder = async (simulatedOrder: Order) => {
+    try {
+      await setDoc(doc(ordersCollection, simulatedOrder.id), simulatedOrder);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // Notification management functions
-  const addNotification = (title: string, message: string, orderId?: string, type: 'order' | 'system' = 'system') => {
+
+  const addNotification = async (title: string, message: string, orderId?: string, type: 'order' | 'system' = 'system') => {
     const newNotif: AppNotification = {
       id: `ntf-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       orderId,
@@ -608,15 +558,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
       read: false,
       type
     };
-    setNotifications(prev => [newNotif, ...prev]);
+    try {
+      await setDoc(doc(notificationsCollection, newNotif.id), newNotif);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const dismissNotification = (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+
+  const markNotificationAsRead = async (id: string) => {
+    try {
+      await updateDoc(doc(notificationsCollection, id), { read: true });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const clearAllNotifications = () => {

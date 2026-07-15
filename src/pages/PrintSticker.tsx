@@ -198,7 +198,7 @@ export default function PrintSticker() {
                   <div className="flex items-start gap-1">
                     <span className="font-extrabold text-slate-500 text-[10px] uppercase w-12 shrink-0">Booking ID:</span>
                     <span className="font-bold text-indigo-900 font-mono text-[11px] bg-indigo-50 px-1 rounded">
-                      {sticker.tracking_code || sticker.consignment_id || 'N/A'}
+                      {sticker.consignment_id || sticker.tracking_code || 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-start gap-1 pt-1 border-t border-slate-100">
@@ -209,10 +209,10 @@ export default function PrintSticker() {
 
                 {/* Barcode & Tracking */}
                 <div className="mt-2 pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-center">
-                  {sticker.tracking_code || sticker.consignment_id ? (
+                  {sticker.consignment_id || sticker.tracking_code ? (
                     <div className="scale-[0.85] origin-center">
                       <Barcode 
-                        value={String(sticker.tracking_code || sticker.consignment_id)} 
+                        value={String(sticker.consignment_id || sticker.tracking_code)} 
                         height={32} 
                         width={1.2} 
                         fontSize={9} 
@@ -221,7 +221,7 @@ export default function PrintSticker() {
                       />
                     </div>
                   ) : (
-                    <div className="text-[10px] text-slate-400 font-bold">No Tracking Code</div>
+                    <div className="text-[10px] text-slate-400 font-bold">No Booking ID</div>
                   )}
                   {sticker.invoice && (
                     <div className="text-[8px] font-bold text-slate-400 mt-1 font-mono">

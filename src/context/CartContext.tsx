@@ -24,6 +24,8 @@ export interface Order {
   total: number;
   date: string;
   status: 'Pending' | 'Confirmed' | 'Shipped' | 'Completed' | 'Cancelled';
+  deliveryCharge?: number;
+  conditionCharge?: number;
 }
 
 export interface AppNotification {

@@ -7,6 +7,7 @@ export interface Product {
   category: string;
   isNew?: boolean;
   isFlashSale?: boolean;
+  isBestSelling?: boolean;
   rating: number;
   reviews: number;
   weight: string;

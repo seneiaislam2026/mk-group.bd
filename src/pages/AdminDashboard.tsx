@@ -519,7 +519,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     recipient_phone: '',
     recipient_address: '',
     cod_amount: '',
-    note: ''
+    note: '',
+    delivery_type: 'home' as 'home' | 'point'
   });
 
   const [customReceiveData, setCustomReceiveData] = useState({ name: '', quantity: '', buyingPrice: '', supplier: '' });
@@ -557,6 +558,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     image: '',
     isNew: false,
     isFlashSale: false,
+    isBestSelling: false,
     description: '',
     stock: '',
     article: '',
@@ -1169,7 +1171,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         }
         setIsProductModalOpen(false);
         setProductFormData({
-          name: '', originalPrice: '', discountedPrice: '', category: '', weight: '১ কেজি', image: '', isNew: false, isFlashSale: false, description: '', stock: '', article: '', isHidden: false, piecesPerBox: '24'
+          name: '', originalPrice: '', discountedPrice: '', category: '', weight: '১ কেজি', image: '', isNew: false, isFlashSale: false, isBestSelling: false, description: '', stock: '', article: '', isHidden: false, piecesPerBox: '24'
         });
         return;
       }
@@ -1192,6 +1194,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       image: finalImage,
       isNew: productFormData.isNew,
       isFlashSale: productFormData.isFlashSale,
+      isBestSelling: productFormData.isBestSelling,
       description: productFormData.description,
       article: productFormData.article,
       stock: productFormData.stock ? parseInt(productFormData.stock) : undefined,
@@ -1219,6 +1222,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       image: '',
       isNew: false,
       isFlashSale: false,
+      isBestSelling: false,
       description: '',
       stock: '',
       article: '',
@@ -1238,6 +1242,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       image: product.image,
       isNew: !!product.isNew,
       isFlashSale: !!product.isFlashSale,
+      isBestSelling: !!product.isBestSelling,
       description: product.description || '',
       article: product.article || '',
       stock: product.stock !== undefined ? product.stock.toString() : '',
@@ -1258,6 +1263,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       image: '',
       isNew: true,
       isFlashSale: false,
+      isBestSelling: false,
       description: '',
       stock: '',
       article: '',
@@ -1454,10 +1460,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <BarChart3 size={18} /> {t.dashboard}
           </button>
           <button 
-            onClick={() => setActiveTab('products')} 
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'products' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            onClick={() => setActiveTab('orders')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'orders' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
-            <Package size={18} /> {t.productManagement}
+            <ShoppingBag size={18} /> {t.orders} {pendingOrdersCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{pendingOrdersCount}</span>}
           </button>
           <button 
             onClick={() => setActiveTab('inventory')} 
@@ -1466,22 +1472,22 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <Boxes size={18} /> {t.inventory}
           </button>
           <button 
-            onClick={() => setActiveTab('receiving')} 
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'receiving' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-          >
-            <Download size={18} /> {t.productReceiving}
-          </button>
-          <button 
             onClick={() => setActiveTab('courier')} 
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'courier' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
             <Truck size={18} /> {t.courier}
           </button>
           <button 
-            onClick={() => setActiveTab('orders')} 
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'orders' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            onClick={() => setActiveTab('products')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'products' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
-            <ShoppingBag size={18} /> {t.orders} {pendingOrdersCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{pendingOrdersCount}</span>}
+            <Package size={18} /> {t.productManagement}
+          </button>
+          <button 
+            onClick={() => setActiveTab('receiving')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'receiving' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <Download size={18} /> {t.productReceiving}
           </button>
           <button 
             onClick={() => setActiveTab('customers')} 
@@ -1624,10 +1630,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <BarChart3 size={16} /> {t.dashboard}
               </button>
               <button 
-                onClick={() => { setActiveTab('products'); setIsMobileMenuOpen(false); }} 
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'products' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+                onClick={() => { setActiveTab('orders'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'orders' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
               >
-                <Package size={16} /> {t.productManagement}
+                <ShoppingBag size={16} /> {t.orders} {pendingOrdersCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">{pendingOrdersCount}</span>}
               </button>
               <button 
                 onClick={() => { setActiveTab('inventory'); setIsMobileMenuOpen(false); }} 
@@ -1636,22 +1642,22 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <Boxes size={16} /> {t.inventory}
               </button>
               <button 
-                onClick={() => { setActiveTab('receiving'); setIsMobileMenuOpen(false); }} 
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'receiving' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
-              >
-                <Download size={16} /> {t.productReceiving}
-              </button>
-              <button 
                 onClick={() => { setActiveTab('courier'); setIsMobileMenuOpen(false); }} 
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'courier' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
               >
                 <Truck size={16} /> {t.courier}
               </button>
               <button 
-                onClick={() => { setActiveTab('orders'); setIsMobileMenuOpen(false); }} 
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'orders' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+                onClick={() => { setActiveTab('products'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'products' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
               >
-                <ShoppingBag size={16} /> {t.orders} {pendingOrdersCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black">{pendingOrdersCount}</span>}
+                <Package size={16} /> {t.productManagement}
+              </button>
+              <button 
+                onClick={() => { setActiveTab('receiving'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'receiving' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                <Download size={16} /> {t.productReceiving}
               </button>
               <button 
                 onClick={() => { setActiveTab('customers'); setIsMobileMenuOpen(false); }} 
@@ -3017,6 +3023,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       image: '',
                       isNew: true,
                       isFlashSale: false,
+                      isBestSelling: false,
                       description: '',
                       article: '',
                       stock: '0',
@@ -3249,7 +3256,15 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                     </div>
                                   </div>
                                   <div>
-                                    <div className="font-extrabold text-slate-900">{product.article || `PRD-${product.id}`}</div>
+                                    <div className={`font-extrabold tracking-wider ${
+                                      (product.stock || 0) < 5 
+                                        ? 'text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 inline-block text-[11px]' 
+                                        : product.isBestSelling 
+                                          ? 'text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 inline-block text-[11px]' 
+                                          : 'text-slate-900'
+                                    }`}>
+                                      {product.article || `PRD-${product.id}`}
+                                    </div>
                                     <div className="text-[10px] text-slate-400 mt-0.5">{product.name}</div>
                                   </div>
                                 </div>
@@ -3341,9 +3356,17 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               </div>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">#{(index + 1).toString().padStart(2, '0')}</span>
-                                <span className="font-extrabold text-slate-900 text-xs tracking-wider">{product.article || `PRD-${product.id}`}</span>
+                                <span className={`font-extrabold text-xs tracking-wider ${
+                                  (product.stock || 0) < 5 
+                                    ? 'text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 inline-block' 
+                                    : product.isBestSelling 
+                                      ? 'text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 inline-block' 
+                                      : 'text-slate-900'
+                                }`}>
+                                  {product.article || `PRD-${product.id}`}
+                                </span>
                               </div>
                               <p className="text-[11px] text-slate-500 font-medium truncate">{product.name}</p>
                             </div>
@@ -3676,7 +3699,27 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-4 text-slate-500 font-mono text-xs">#{order.id}</td>
                           <td className="p-4">
-                            <div className="font-extrabold text-slate-900 leading-none text-xs">{order.customerName}</div>
+                            {order.status === 'Pending' ? (
+                              <button 
+                                onClick={() => {
+                                  setEditingOrderId(order.id);
+                                  setManualOrderCustomerName(order.customerName);
+                                  setManualOrderPhone(order.phone);
+                                  setManualOrderAddress(order.address || '');
+                                  setManualOrderItems(order.items || []);
+                                  setManualDeliveryCharge(order.deliveryCharge || 0);
+                                  setManualConditionCharge(order.conditionCharge || 0);
+                                  setManualOrderIsDue(false);
+                                  setIsManualOrderModalOpen(true);
+                                }}
+                                className="font-extrabold text-[#2e7d32] hover:text-emerald-800 leading-none text-xs hover:underline text-left cursor-pointer transition-colors block"
+                                title="এডিট করতে ক্লিক করুন"
+                              >
+                                {order.customerName} (এডিট করুন 📝)
+                              </button>
+                            ) : (
+                              <div className="font-extrabold text-slate-900 leading-none text-xs">{order.customerName}</div>
+                            )}
                             <div className="text-[10px] text-slate-400 font-normal tracking-wide mt-1.5">{order.phone}</div>
                           </td>
                           <td className="p-4">
@@ -3707,6 +3750,25 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               >
                                 বিবরণ
                               </button>
+                              
+                              {order.status === 'Pending' && (
+                                <button 
+                                  onClick={() => {
+                                    setEditingOrderId(order.id);
+                                    setManualOrderCustomerName(order.customerName);
+                                    setManualOrderPhone(order.phone);
+                                    setManualOrderAddress(order.address || '');
+                                    setManualOrderItems(order.items || []);
+                                    setManualDeliveryCharge(order.deliveryCharge || 0);
+                                    setManualConditionCharge(order.conditionCharge || 0);
+                                    setManualOrderIsDue(false);
+                                    setIsManualOrderModalOpen(true);
+                                  }}
+                                  className="text-amber-600 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded text-[10px] font-extrabold transition-colors border border-amber-100"
+                                >
+                                  এডিট
+                                </button>
+                              )}
                               
                               {order.status !== 'Completed' && (
                                 courierHistory.some(c => c.invoice === order.id) ? (
@@ -3801,7 +3863,27 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
                       {/* Customer contact details */}
                       <div>
-                        <div className="font-extrabold text-[#115e5a] text-sm leading-snug">{order.customerName}</div>
+                        {order.status === 'Pending' ? (
+                          <button 
+                            onClick={() => {
+                              setEditingOrderId(order.id);
+                              setManualOrderCustomerName(order.customerName);
+                              setManualOrderPhone(order.phone);
+                              setManualOrderAddress(order.address || '');
+                              setManualOrderItems(order.items || []);
+                              setManualDeliveryCharge(order.deliveryCharge || 0);
+                              setManualConditionCharge(order.conditionCharge || 0);
+                              setManualOrderIsDue(false);
+                              setIsManualOrderModalOpen(true);
+                            }}
+                            className="font-extrabold text-[#2e7d32] hover:text-emerald-800 text-sm leading-snug hover:underline text-left cursor-pointer transition-colors block"
+                            title="এডিট করতে ক্লিক করুন"
+                          >
+                            {order.customerName} (এডিট করুন 📝)
+                          </button>
+                        ) : (
+                          <div className="font-extrabold text-[#115e5a] text-sm leading-snug">{order.customerName}</div>
+                        )}
                         <div className="text-[10px] text-slate-400 font-extrabold mt-0.5">{order.phone}</div>
                       </div>
 
@@ -3834,6 +3916,24 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           >
                             বিবরণ
                           </button>
+                          {order.status === 'Pending' && (
+                            <button 
+                              onClick={() => {
+                                setEditingOrderId(order.id);
+                                setManualOrderCustomerName(order.customerName);
+                                setManualOrderPhone(order.phone);
+                                setManualOrderAddress(order.address || '');
+                                setManualOrderItems(order.items || []);
+                                setManualDeliveryCharge(order.deliveryCharge || 0);
+                                setManualConditionCharge(order.conditionCharge || 0);
+                                setManualOrderIsDue(false);
+                                setIsManualOrderModalOpen(true);
+                              }}
+                              className="text-amber-600 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded text-[10px] font-extrabold transition-colors border border-amber-100 shrink-0"
+                            >
+                              এডিট
+                            </button>
+                          )}
                           {order.status !== 'Completed' && (
                             courierHistory.some(c => c.invoice === order.id) ? (
                               <button 
@@ -6363,8 +6463,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     const subtotal = manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                     const grandTotal = subtotal + (Number(manualDeliveryCharge) || 0) + (Number(manualConditionCharge) || 0);
                     
-                    // Deduct from stock
-                    if (Array.isArray(products)) {
+                    // Deduct from stock (only for brand new orders)
+                    if (!editingOrderId && Array.isArray(products)) {
                       manualOrderItems.forEach(item => {
                         const prod = products.find(p => p.id === item.id);
                         if (prod) {
@@ -6373,41 +6473,61 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       });
                     }
 
-                    // Safe sequential ID generation
-                    let maxId = 0;
-                    if (Array.isArray(orders)) {
-                      orders.forEach(o => {
-                        if (o && typeof o.id === 'string') {
-                          const match = o.id.match(/^Ord-(\d+)$/i);
-                          if (match) {
-                            const num = parseInt(match[1], 10);
-                            if (!isNaN(num) && num > maxId) maxId = num;
-                          } else {
-                            const matchLegacy = o.id.match(/^man-(\d+)$/i);
-                            if (matchLegacy) {
-                              const num = parseInt(matchLegacy[1], 10);
+                    let orderId = editingOrderId;
+                    let orderDate = new Date().toISOString();
+                    let orderStatus: 'Pending' | 'Confirmed' | 'Shipped' | 'Completed' | 'Cancelled' = 'Pending';
+
+                    if (editingOrderId) {
+                      const originalOrder = orders.find(o => o.id === editingOrderId);
+                      if (originalOrder) {
+                        orderDate = originalOrder.date || orderDate;
+                        orderStatus = originalOrder.status || orderStatus;
+                      }
+                    } else {
+                      // Safe sequential ID generation for new orders
+                      let maxId = 0;
+                      if (Array.isArray(orders)) {
+                        orders.forEach(o => {
+                          if (o && typeof o.id === 'string') {
+                            const matchPure = o.id.match(/^(\d+)$/);
+                            if (matchPure) {
+                              const num = parseInt(matchPure[1], 10);
                               if (!isNaN(num) && num > maxId) maxId = num;
+                            } else {
+                              const matchOrd = o.id.match(/^Ord-(\d+)$/i);
+                              if (matchOrd) {
+                                const num = parseInt(matchOrd[1], 10);
+                                if (!isNaN(num) && num > maxId) maxId = num;
+                              } else {
+                                const matchLegacy = o.id.match(/^man-(\d+)$/i);
+                                if (matchLegacy) {
+                                  const num = parseInt(matchLegacy[1], 10);
+                                  if (!isNaN(num) && num > maxId) maxId = num;
+                                }
+                              }
                             }
                           }
-                        }
-                      });
+                        });
+                      }
+                      orderId = (maxId + 1).toString().padStart(3, '0');
                     }
-                    const newOrderId = `Ord-${(maxId + 1).toString().padStart(3, '0')}`;
 
                     const newManualOrderObj = {
-                      id: newOrderId,
+                      id: orderId as string,
                       customerName: manualOrderCustomerName,
                       phone: manualOrderPhone,
                       address: manualOrderAddress,
                       items: manualOrderItems,
                       total: grandTotal,
-                      date: new Date().toISOString(),
-                      status: 'Pending' as const
+                      date: orderDate,
+                      status: orderStatus,
+                      deliveryCharge: Number(manualDeliveryCharge) || 0,
+                      conditionCharge: Number(manualConditionCharge) || 0
                     };
 
                     addSimulatedOrder(newManualOrderObj);
 
-                    if (manualOrderIsDue) {
+                    if (!editingOrderId && manualOrderIsDue) {
                       const addedDue = {
                         id: `d-${Date.now()}`,
                         customerName: manualOrderCustomerName,
@@ -6475,7 +6595,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           recipient_phone: createdOrderForActions.phone,
                           recipient_address: createdOrderForActions.address,
                           cod_amount: createdOrderForActions.total.toString(),
-                          note: ''
+                          note: '',
+                          delivery_type: 'home'
                         });
                         setIsManualOrderModalOpen(false); 
                         setIsCourierBookingOpen(true);
@@ -6586,6 +6707,29 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   placeholder="কুরিয়ারের জন্য কোনো নির্দেশনা"
                 />
               </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1.5">ডেলিভারি ধরন (Delivery Type)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setCourierBookingData(p => ({ ...p, delivery_type: 'home' }))}
+                    className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer ${
+                      courierBookingData.delivery_type === 'home' ? 'bg-[#1b4332]/10 border-[#1b4332] text-[#1b4332]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    হোম ডেলিভারি
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setCourierBookingData(p => ({ ...p, delivery_type: 'point' }))}
+                    className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer ${
+                      courierBookingData.delivery_type === 'point' ? 'bg-amber-50 border-amber-500 text-amber-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    পয়েন্ট ডেলিভারি
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="p-5 border-t border-gray-100 flex gap-3">
               <button 
@@ -6615,7 +6759,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         recipient_phone: courierBookingData.recipient_phone,
                         recipient_address: courierBookingData.recipient_address,
                         cod_amount: courierBookingData.cod_amount,
-                        note: courierBookingData.note
+                        note: `${courierBookingData.note ? courierBookingData.note + ' | ' : ''}Delivery: ${courierBookingData.delivery_type === 'home' ? 'Home Delivery' : 'Point Delivery'}`
                       })
                     });
                     const data = await response.json();
@@ -6630,6 +6774,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         amount: courierBookingData.cod_amount,
                         recipient_address: courierBookingData.recipient_address,
                         status: 'pending',
+                        delivery_type: courierBookingData.delivery_type,
                         created_at: new Date().toISOString()
                       };
                       await setDoc(doc(courierHistoryCollection, newBooking.consignment_id.toString()), newBooking);
@@ -6644,7 +6789,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         customer_phone: courierBookingData.recipient_phone,
                         customer_address: courierBookingData.recipient_address
                       });
-                      setCourierBookingData({ invoice: '', recipient_name: '', recipient_phone: '', recipient_address: '', cod_amount: '', note: '' });
+                      setCourierBookingData({ invoice: '', recipient_name: '', recipient_phone: '', recipient_address: '', cod_amount: '', note: '', delivery_type: 'home' });
                     } else {
                       alert('বুকিং ব্যর্থ হয়েছে। এরর: ' + (data.message || 'অজানা ত্রুটি'));
                     }
@@ -7005,7 +7150,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 />
               </div>
 
-              <div className="flex gap-6 pt-2 select-none">
+              <div className="flex gap-6 pt-2 select-none flex-wrap">
                 <label className="flex items-center gap-2 cursor-pointer text-slate-700 text-xs">
                   <input 
                     type="checkbox" 
@@ -7024,6 +7169,16 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     className="w-4 h-4 text-[#2e7d32] border-[#2e7d32]/20 rounded focus:ring-0 cursor-pointer"
                   />
                   <span>ফ্ল্যাশ সেল তালিকাভুক্ত</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-[#2e7d32] text-xs font-bold">
+                  <input 
+                    type="checkbox" 
+                    checked={productFormData.isBestSelling || false} 
+                    onChange={(e) => setProductFormData(p => ({ ...p, isBestSelling: e.target.checked }))} 
+                    className="w-4 h-4 text-[#2e7d32] border-[#2e7d32]/20 rounded focus:ring-0 cursor-pointer"
+                  />
+                  <span>বেস্ট সেলিং (Best Selling)</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer text-rose-700 text-xs bg-rose-50 px-2 py-1.5 rounded-lg border border-rose-100">

@@ -541,6 +541,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [quickName, setQuickName] = useState('');
   const [quickPrice, setQuickPrice] = useState('');
   const [quickStockBoxes, setQuickStockBoxes] = useState('24');
+  const [quickImage, setQuickImage] = useState('');
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
@@ -1031,18 +1032,89 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     alert('সফলভাবে ল্যান্ডিং পেজ লিঙ্ক কপি হয়েছে!\n\nএই লিঙ্কটি কপি করে আপনি সরাসরি ফেসবুকে বা অন্য যেকোনো বিজ্ঞাপনে ব্যবহার করতে পারবেন।\n\nলিঙ্ক: ' + link);
   };
 
+  // Image Upload helper with size limit of 2MB & canvas compression for Firestore
+  const handleImageUpload = (file: File, onSuccess: (base64Url: string) => void) => {
+    if (!file) return;
+    
+    // Check size <= 2MB
+    if (file.size > 2 * 1024 * 1024) {
+      alert("ফাইল সাইজ অবশ্যই ২MB এর কম হতে হবে! (File must be under 2MB)");
+      return;
+    }
+    
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      alert("শুধুমাত্র ছবি আপলোড করা যাবে! (Only images are supported)");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        // We compress the image using a canvas to fit within Firestore document limit (1MB)
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Downscale if too large
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          if (width > height) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          } else {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress as jpeg with 0.7 quality
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          onSuccess(compressedBase64);
+        } else {
+          // Fallback to original data URL if canvas fails
+          onSuccess(event.target?.result as string);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Quick Add Product for Inventory Control Tab
   const handleQuickAddProduct = () => {
     if (!quickArticle.trim()) {
       alert('দয়া করে আর্টিকেল নম্বর দিন।');
       return;
     }
-    if (!quickName.trim()) {
-      alert('দয়া করে পণ্যের নাম দিন।');
-      return;
-    }
     if (!quickPrice.trim() || isNaN(parseFloat(quickPrice)) || parseFloat(quickPrice) <= 0) {
       alert('সবচেয়ে সঠিক মূল্য দিন।');
+      return;
+    }
+    
+    const existingProduct = products.find(p => p.article === quickArticle.trim());
+    if (existingProduct) {
+      // Just update the stock and image if specified
+      const boxesNum = parseInt(quickStockBoxes) || 0;
+      updateProduct({
+        ...existingProduct,
+        stock: (existingProduct.stock || 0) + boxesNum,
+        image: quickImage.trim() || existingProduct.image
+      });
+      addNotification('স্টক আপডেট', `আর্টিকেল ${quickArticle.trim()} অনুযায়ী ${boxesNum} পিস স্টকে যুক্ত করা হয়েছে।`);
+      setQuickArticle('');
+      setQuickName('');
+      setQuickPrice('');
+      setQuickStockBoxes('0');
+      setQuickImage('');
+      alert('বর্তমান পণ্যের স্টক সফলভাবে আপডেট করা হয়েছে!');
       return;
     }
 
@@ -1050,11 +1122,11 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     const initialStock = boxesNum;
 
     const payload = {
-      name: quickName.trim(),
+      name: quickName.trim() || quickArticle.trim(),
       originalPrice: parseFloat(quickPrice) * 24,
       category: 'জুতো', // Default category for shoe warehouse inventory
       weight: '১ জোড়া',
-      image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', // default stylish placeholder
+      image: quickImage.trim(),
       isNew: true,
       description: `আর্টিকেল ${quickArticle.trim()} - প্রিমিয়াম কোয়ালিটি পণ্য`,
       article: quickArticle.trim(),
@@ -1071,13 +1143,36 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setQuickName('');
     setQuickPrice('');
     setQuickStockBoxes('0');
+    setQuickImage('');
     alert('নতুন পণ্য ও মূল্য সফলভাবে ইনভেন্টরিতে যুক্ত করা হয়েছে!');
   };
 
   // Product submission form
   const handleProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productFormData.name || !productFormData.originalPrice) return;
+    if (!productFormData.originalPrice) return; // name is optional now
+    
+    // Check if product with this article already exists
+    if (!editingProduct && productFormData.article) {
+      const existingProduct = products.find(p => p.article === productFormData.article);
+      if (existingProduct) {
+        const addedStock = productFormData.stock ? parseInt(productFormData.stock) : 0;
+        if (addedStock > 0) {
+          updateProduct({
+            ...existingProduct,
+            stock: (existingProduct.stock || 0) + addedStock
+          });
+          addNotification('স্টক আপডেট', `আর্টিকেল ${productFormData.article} এর স্টকে ${addedStock} পিস যোগ করা হয়েছে।`);
+        } else {
+          addNotification('সতর্কতা', `আর্টিকেল ${productFormData.article} আগে থেকেই আছে, কিন্তু কোন স্টক দেওয়া হয়নি।`);
+        }
+        setIsProductModalOpen(false);
+        setProductFormData({
+          name: '', originalPrice: '', discountedPrice: '', category: '', weight: '১ কেজি', image: '', isNew: false, isFlashSale: false, description: '', stock: '', article: '', isHidden: false, piecesPerBox: '24'
+        });
+        return;
+      }
+    }
 
     const defaultImages = [
       'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80',
@@ -1085,10 +1180,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&w=400&q=80'
     ];
 
-    const finalImage = productFormData.image.trim() || defaultImages[Math.floor(Math.random() * defaultImages.length)];
+    const finalImage = productFormData.image.trim();
 
     const payload = {
-      name: productFormData.name,
+      name: productFormData.name.trim() || productFormData.article.trim() || 'পণ্য',
       originalPrice: parseFloat(productFormData.originalPrice),
       discountedPrice: productFormData.discountedPrice ? parseFloat(productFormData.discountedPrice) : undefined,
       category: productFormData.category,
@@ -2961,13 +3056,25 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       <input
                         type="text"
                         placeholder="যেমন: ART-102"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-[#2e7d32] text-xs font-bold text-slate-800"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-[#2e7d32] text-xs font-bold text-slate-800 font-sans"
                         value={quickArticle}
-                        onChange={(e) => setQuickArticle(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setQuickArticle(val);
+                          const existing = products.find(p => p.article === val.trim());
+                          if (existing) {
+                            const perPairPrice = Math.round(existing.originalPrice / ((existing as any).piecesPerBox || 24));
+                            setQuickPrice(perPairPrice.toString());
+                            setQuickName(existing.name);
+                            if (existing.image) {
+                              setQuickImage(existing.image);
+                            }
+                          }
+                        }}
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider">পণ্যের নাম <span className="text-rose-500">*</span></label>
+                      <label className="block text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider">পণ্যের নাম (ঐচ্ছিক)</label>
                       <input
                         type="text"
                         placeholder="যেমন: জেন্টস স্লিপার"
@@ -3005,6 +3112,83 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       </button>
                     </div>
                   </div>
+
+                  {/* Photo addition option */}
+                  <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider">পণ্যের ছবি (URL বা আপলোড)</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="যেমন: https://images.unsplash.com/..."
+                          className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-[#2e7d32] text-xs font-normal font-sans text-slate-800"
+                          value={quickImage}
+                          onChange={(e) => setQuickImage(e.target.value)}
+                        />
+                        <label className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-[10px] font-bold shrink-0 select-none">
+                          <Upload size={12} />
+                          আপলোড
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handleImageUpload(file, (url) => {
+                                  setQuickImage(url);
+                                });
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {quickImage && quickImage.startsWith('data:image/') && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-md overflow-hidden border border-slate-150 bg-slate-50 relative shrink-0">
+                            <img src={quickImage} alt="Uploaded" className="w-full h-full object-cover" />
+                          </div>
+                          <span className="text-[9px] text-emerald-600 font-bold font-sans">✓ আপলোড সফল (Max 2MB)</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="block text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider">অথবা দ্রুত ছবি সিলেক্ট করুন</label>
+                      <div className="flex gap-2 flex-wrap items-center">
+                        {[
+                          { name: 'কালো স্যান্ডাল', url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400' },
+                          { name: 'স্লিপার', url: 'https://images.unsplash.com/photo-1603808033192-082d6919d3e1?w=400' },
+                          { name: 'লোফার', url: 'https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=400' },
+                          { name: 'মহিলা জুতো', url: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400' },
+                        ].map((preset, pIdx) => (
+                          <button
+                            key={pIdx}
+                            type="button"
+                            onClick={() => setQuickImage(preset.url)}
+                            className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              quickImage === preset.url
+                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-2 ring-indigo-200 shadow-sm'
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="w-5 h-5 rounded overflow-hidden border border-slate-100 shrink-0 bg-slate-100">
+                              <img src={preset.url} alt={preset.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                            {preset.name}
+                          </button>
+                        ))}
+                        {quickImage && (
+                          <button
+                            type="button"
+                            onClick={() => setQuickImage('')}
+                            className="text-rose-500 hover:text-rose-700 text-[10px] font-bold px-2 py-1 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                          >
+                            ছবি মুছুন
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-6 shadow-sm relative overflow-hidden mt-6">
@@ -3027,10 +3211,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase text-[11px] select-none text-left">
                           <th className="p-4 font-bold text-center w-16">সিরিয়াল</th>
-                          <th className="p-4 font-bold">আর্টিকেল</th>
+                          <th className="p-4 font-bold">পণ্য</th>
                           <th className="p-4 font-bold">বক্স/জোড়া</th>
                           <th className="p-4 font-bold">মূল্য</th>
-                          <th className="p-4 font-bold text-right w-32">অ্যাকশন</th>
+                          <th className="p-4 font-bold text-right w-36">অ্যাকশন</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -3047,8 +3231,27 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             <tr key={product.id} className="hover:bg-slate-50/50 transition-colors">
                               <td className="p-4 text-center text-slate-500 font-mono">{index + 1}</td>
                               <td className="p-4">
-                                <div className="font-extrabold text-slate-900">{product.article || `PRD-${product.id}`}</div>
-                                <div className="text-[10px] text-slate-400 mt-0.5">{product.name}</div>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-150 shrink-0 bg-slate-50 shadow-sm relative group cursor-pointer" onClick={() => {
+                                      const newUrl = window.prompt('পণ্যের নতুন ছবির URL দিন:', product.image);
+                                      if (newUrl) updateProduct({ ...product, image: newUrl });
+                                  }} title="ছবি পরিবর্তন করতে ক্লিক করুন">
+                                    {product.image ? (
+                                      <img loading="lazy" src={product.image} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
+                                        <Package size={18} />
+                                      </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center">
+                                      <Camera size={14} className="text-white" />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="font-extrabold text-slate-900">{product.article || `PRD-${product.id}`}</div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">{product.name}</div>
+                                  </div>
+                                </div>
                               </td>
                               <td className="p-4">
                                 <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-xl text-xs font-black whitespace-nowrap">
@@ -3056,18 +3259,49 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                 </span>
                               </td>
                               <td className="p-4 font-black text-slate-900">৳{product.discountedPrice || product.originalPrice}</td>
-                              <td className="p-4 text-right">
-                                <button
-                                  onClick={() => {
-                                    setSelectedStockProduct(product);
-                                    setAddBoxes('1');
-                                    setAddPairs('0');
-                                    setIsStockAdjustmentModalOpen(true);
-                                  }}
-                                  className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-[#2e7d32] text-emerald-700 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow"
-                                >
-                                  <SlidersHorizontal size={12} /> সমন্বয়
-                                </button>
+                              <td className="p-4">
+                                <div className="flex items-center justify-end gap-1.5 font-bold">
+                                  <button
+                                    onClick={() => {
+                                      const newUrl = window.prompt('পণ্যের নতুন ছবির URL দিন:', product.image);
+                                      if (newUrl) updateProduct({ ...product, image: newUrl });
+                                    }}
+                                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 p-2 rounded-lg transition-colors cursor-pointer"
+                                    title="ছবি যোগ/পরিবর্তন"
+                                  >
+                                    <Camera size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedStockProduct(product);
+                                      setAddBoxes('1');
+                                      setAddPairs('0');
+                                      setIsStockAdjustmentModalOpen(true);
+                                    }}
+                                    className="bg-emerald-50 hover:bg-[#2e7d32] text-emerald-700 hover:text-white p-2 rounded-lg transition-colors cursor-pointer shadow-sm hover:shadow"
+                                    title="স্টক সমন্বয়"
+                                  >
+                                    <SlidersHorizontal size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={() => openEditProductModal(product)}
+                                    className="bg-blue-50 hover:bg-blue-100 text-blue-600 p-2 rounded-lg transition-colors cursor-pointer"
+                                    title="সম্পাদনা"
+                                  >
+                                    <Edit size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      if(window.confirm('আপনি কি এই পণ্যটি মুছে ফেলতে চান?')) {
+                                        deleteProduct(product.id);
+                                      }
+                                    }}
+                                    className="bg-rose-50 text-rose-600 p-2 rounded-lg hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
+                                    title="মুছে ফেলুন"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -3089,7 +3323,22 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
                       return (
                         <div key={product.id} className="p-4 border border-slate-100 rounded-2xl bg-slate-50/30 hover:bg-slate-50/60 transition-all flex flex-col gap-3">
-                          <div className="flex justify-between items-start gap-2">
+                          <div className="flex justify-between items-start gap-3">
+                            <div className="w-14 h-14 rounded-xl overflow-hidden border border-slate-150 shrink-0 bg-slate-50 shadow-sm relative group" onClick={() => {
+                                const newUrl = window.prompt('পণ্যের নতুন ছবির URL দিন:', product.image);
+                                if (newUrl) updateProduct({ ...product, image: newUrl });
+                            }}>
+                              {product.image ? (
+                                <img loading="lazy" src={product.image} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
+                                  <Package size={24} />
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 cursor-pointer transition-opacity">
+                                <Camera size={16} className="text-white" />
+                              </div>
+                            </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">#{(index + 1).toString().padStart(2, '0')}</span>
@@ -3110,17 +3359,38 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                 {stockText}
                               </span>
                             </div>
-                            <button
-                              onClick={() => {
-                                setSelectedStockProduct(product);
-                                setAddBoxes('1');
-                                setAddPairs('0');
-                                setIsStockAdjustmentModalOpen(true);
-                              }}
-                              className="bg-[#2e7d32] hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-[#2e7d32]/10"
-                            >
-                              <SlidersHorizontal size={11} /> স্টক সমন্বয়
-                            </button>
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setSelectedStockProduct(product);
+                                  setAddBoxes('1');
+                                  setAddPairs('0');
+                                  setIsStockAdjustmentModalOpen(true);
+                                }}
+                                className="bg-emerald-50 hover:bg-[#2e7d32] text-emerald-700 hover:text-white px-2.5 py-2 rounded-xl transition-all flex items-center justify-center cursor-pointer shadow-sm"
+                                title="স্টক সমন্বয়"
+                              >
+                                <SlidersHorizontal size={14} />
+                              </button>
+                              <button 
+                                onClick={() => openEditProductModal(product)}
+                                className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-2.5 py-2 rounded-xl transition-all flex items-center justify-center cursor-pointer shadow-sm"
+                                title="সম্পাদনা"
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  if(window.confirm('আপনি কি এই পণ্যটি মুছে ফেলতে চান?')) {
+                                    deleteProduct(product.id);
+                                  }
+                                }}
+                                className="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-2.5 py-2 rounded-xl transition-all flex items-center justify-center cursor-pointer shadow-sm"
+                                title="মুছে ফেলুন"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -3220,6 +3490,17 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                   >
                                     রিসিভ
                                   </button>
+                                  <button 
+                                    onClick={() => {
+                                      if(window.confirm('আপনি কি এই পণ্যটি স্টক থেকে মুছে ফেলতে চান?')) {
+                                        deleteProduct(product.id);
+                                      }
+                                    }}
+                                    className="bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-rose-600 hover:text-white transition-colors"
+                                    title="স্টক থেকে ডিলিট করুন"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -3275,6 +3556,17 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               className="bg-[#2e7d32] text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors whitespace-nowrap"
                             >
                               রিসিভ
+                            </button>
+                            <button 
+                              onClick={() => {
+                                if(window.confirm('আপনি কি এই পণ্যটি স্টক থেকে মুছে ফেলতে চান?')) {
+                                  deleteProduct(product.id);
+                                }
+                              }}
+                              className="bg-rose-50 text-rose-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-rose-600 hover:text-white transition-colors flex items-center justify-center"
+                              title="স্টক থেকে ডিলিট করুন"
+                            >
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </div>
@@ -6491,10 +6783,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
             <form onSubmit={handleProductSubmit} className="p-6 space-y-4 overflow-y-auto flex-1 font-bold">
               <div>
-                <label className="block text-xs text-slate-500 mb-1.5">পণ্যের পূর্ণ নাম লিখুন (বাংলায়) <span className="text-rose-500">*</span></label>
+                <label className="block text-xs text-slate-500 mb-1.5">পণ্যের পূর্ণ নাম লিখুন (বাংলায়) (ঐচ্ছিক)</label>
                 <input 
                   type="text" 
-                  required
                   value={productFormData.name}
                   onChange={(e) => setProductFormData(p => ({ ...p, name: e.target.value }))}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#2e7d32] focus:ring-1 focus:ring-[#2e7d32] outline-none text-xs text-slate-700 font-bold" 
@@ -6551,15 +6842,49 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs text-slate-500 mb-1.5">ছবির লিংক (Unsplash বা পাবলিক URL)</label>
-                <input 
-                  type="text" 
-                  value={productFormData.image}
-                  onChange={(e) => setProductFormData(p => ({ ...p, image: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#2e7d32] outline-none text-xs text-slate-700 font-normal font-sans" 
-                  placeholder="https://images.unsplash.com/..."
-                />
+               <div>
+                <label className="block text-xs text-slate-500 mb-1.5">ছবির লিংক (Unsplash বা পাবলিক URL / আপলোড)</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={productFormData.image}
+                    onChange={(e) => setProductFormData(p => ({ ...p, image: e.target.value }))}
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#2e7d32] outline-none text-xs text-slate-700 font-normal font-sans" 
+                    placeholder="https://images.unsplash.com/..."
+                  />
+                  <label className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs shrink-0 select-none font-bold">
+                    <Upload size={14} />
+                    ছবি আপলোড (Max 2MB)
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleImageUpload(file, (url) => {
+                            setProductFormData(p => ({ ...p, image: url }));
+                          });
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                {productFormData.image && productFormData.image.startsWith('data:image/') && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-150 bg-slate-50 relative shrink-0">
+                      <img src={productFormData.image} alt="Uploaded" className="w-full h-full object-cover" />
+                    </div>
+                    <span className="text-[10px] text-emerald-600 font-bold font-sans">✓ ছবি সফলভাবে আপলোড হয়েছে</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setProductFormData(p => ({ ...p, image: '' }))} 
+                      className="text-rose-500 hover:text-rose-700 text-[10px] font-bold bg-rose-50 px-2 py-1 rounded transition-colors"
+                    >
+                      মুছে ফেলুন
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -6588,7 +6913,21 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <input 
                   type="text"
                   value={productFormData.article || ''}
-                  onChange={(e) => setProductFormData(p => ({ ...p, article: e.target.value }))}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setProductFormData(p => {
+                      const existing = !editingProduct ? products.find(prod => prod.article === val.trim()) : null;
+                      if (existing) {
+                        return { 
+                          ...p, 
+                          article: val,
+                          originalPrice: p.originalPrice || existing.originalPrice.toString(),
+                          name: p.name || existing.name
+                        };
+                      }
+                      return { ...p, article: val };
+                    });
+                  }}
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#1b4332] text-xs text-slate-700 font-bold mb-4"
                   placeholder="যেমন: ART-1234"
                 />

@@ -42,6 +42,7 @@ export default function Layout() {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-agreement')) return 'print-agreement';
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-sticker')) return 'print-sticker';
     if (typeof window === 'undefined') return 'store';
+    if (window.location.hash === '#admin') return 'admin';
     if (getProductIdFromUrl()) return 'landing';
     return 'store';
   });
@@ -51,9 +52,9 @@ export default function Layout() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    // To ensure home page opens first on fresh load (dhuklei home page ashbe, login page na)
-    if (window.location.hash === '#admin') {
-      window.location.hash = '';
+    // Check auth on load for admin route
+    if (window.location.hash === '#admin' && localStorage.getItem('mk_admin_authenticated') !== 'true') {
+      // Allow it to load the admin page, AdminDashboard handles the login screen
     }
 
     const handleHashAndUrlChange = () => {

@@ -50,9 +50,9 @@ export default function Header() {
                 {cartCount}
               </span>
             </button>
-            <button onClick={() => window.location.hash = '#admin'} className="cursor-pointer">
+            <a href="#admin" className="cursor-pointer flex items-center justify-center p-1.5 transition-all rounded-lg hover:bg-slate-100">
               <User size={24} strokeWidth={2.5} />
-            </button>
+            </a>
             <button onClick={() => setIsMobileMenuOpen(true)} className="cursor-pointer">
               <Menu size={28} strokeWidth={2.5} />
             </button>
@@ -133,13 +133,14 @@ export default function Header() {
 
             {/* My Account bottom footer */}
             <div className="p-4 border-t border-gray-100 bg-gray-50/50 shrink-0">
-              <button 
-                onClick={() => { window.location.hash = '#admin'; setIsMobileMenuOpen(false); }}
+              <a 
+                href="#admin"
+                onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full flex items-center gap-3 px-4 py-3.5 text-zinc-700 hover:text-[#00693E] hover:bg-white rounded-xl transition-all font-bold text-sm border border-transparent hover:border-gray-200 shadow-sm bg-white cursor-pointer"
               >
                 <User size={18} className="text-zinc-400" />
                 <span>আমার অ্যাকাউন্ট</span>
-              </button>
+              </a>
             </div>
           </div>
         </div>

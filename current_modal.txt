@@ -1,0 +1,321 @@
+  5730	      
+  5731	      {/* Manual Order Creation Modal */}
+  5732	      {isManualOrderModalOpen && (
+  5733	        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+  5734	          <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+  5735	            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+  5736	              <h3 className="font-bold text-slate-800 text-lg">
+  5737	                {editingOrderId ? 'অর্ডার এডিট করুন' : 'ম্যানুয়াল ক্যাশ-অন-ডেলিভারি অর্ডার'}
+  5738	              </h3>
+  5739	              <button onClick={() => { setIsManualOrderModalOpen(false); setEditingOrderId(null); }} className="text-slate-400 hover:text-rose-500 transition-colors">
+  5740	                <X size={20} />
+  5741	              </button>
+  5742	            </div>
+  5743	            
+  5744	            <div className="flex-1 overflow-y-auto p-5">
+  5745	              {!createdOrderForActions ? (
+  5746	                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  5747	                  {/* Left Column */}
+  5748	                  <div className="space-y-6">
+  5749	                    {/* Customer Info */}
+  5750	                    <div className="space-y-4">
+  5751	                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">গ্রাহকের তথ্য</h4>
+  5752	                      <div>
+  5753	                        <label className="block text-xs font-bold text-slate-700 mb-1">নাম</label>
+  5754	                        <input type="text" value={manualOrderCustomerName} onChange={e => setManualOrderCustomerName(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-[#2e7d32] text-sm" placeholder="গ্রাহকের নাম" />
+  5755	                      </div>
+  5756	                      <div>
+  5757	                        <label className="block text-xs font-bold text-slate-700 mb-1">ফোন নম্বর</label>
+  5758	                        <input type="text" value={manualOrderPhone} onChange={e => setManualOrderPhone(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-[#2e7d32] text-sm" placeholder="01XXXXXXXXX" />
+  5759	                      </div>
+  5760	                      <div>
+  5761	                        <label className="block text-xs font-bold text-slate-700 mb-1">ঠিকানা</label>
+  5762	                        <textarea value={manualOrderAddress} onChange={e => setManualOrderAddress(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-[#2e7d32] text-sm resize-none" placeholder="পূর্ণ ঠিকানা"></textarea>
+  5763	                      </div>
+  5764	                    </div>
+  5765	
+  5766	                    {/* Product Selection */}
+  5767	                    <div className="space-y-4">
+  5768	                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">পণ্য নির্বাচন</h4>
+  5769	                      <div className="flex gap-2 items-end">
+  5770	                        <div className="flex-1">
+  5771	                          <label className="block text-[10px] text-slate-500 font-bold mb-1">আর্টিকেল নম্বর</label>
+  5772	                          <input type="text" value={manualArticleSearch} onChange={e => {
+  5773	                            setManualArticleSearch(e.target.value);
+  5774	                            const prod = products.find(p => p.article === e.target.value || p.id === e.target.value);
+  5775	                            if (prod) {
+  5776	                              setManualSelectedProductId(prod.id);
+  5777	                              setManualSelectedPrice(prod.discountedPrice || prod.originalPrice);
+  5778	                            } else {
+  5779	                              setManualSelectedProductId('');
+  5780	                              setManualSelectedPrice('');
+  5781	                            }
+  5782	                          }} className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold outline-none focus:border-[#2e7d32]" placeholder="আর্টিকেল নং" />
+  5783	                        </div>
+  5784	                        <div className="w-20">
+  5785	                          <label className="block text-[10px] text-slate-500 font-bold mb-1">পরিমাণ</label>
+  5786	                          <input type="number" min="1" value={manualSelectedQuantity} onChange={e => setManualSelectedQuantity(Math.max(1, Number(e.target.value)))} className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-black outline-none focus:border-[#2e7d32]" />
+  5787	                        </div>
+  5788	                        <div className="w-24">
+  5789	                          <label className="block text-[10px] text-slate-500 font-bold mb-1">রেট (৳)</label>
+  5790	                          <input type="number" min="0" value={manualSelectedPrice} onChange={e => setManualSelectedPrice(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-black outline-none focus:border-[#2e7d32]" />
+  5791	                        </div>
+  5792	                        <button type="button" onClick={() => {
+  5793	                          if (!manualArticleSearch.trim() || manualSelectedPrice === '') return;
+  5794	                          
+  5795	                          let finalId = manualSelectedProductId;
+  5796	                          let finalName = `Custom Product (${manualArticleSearch})`;
+  5797	                          
+  5798	                          if (finalId) {
+  5799	                             const p = products.find(prod => prod.id === finalId);
+  5800	                             if (p) finalName = p.name;
+  5801	                          } else {
+  5802	                             finalId = 'custom-' + Date.now();
+  5803	                          }
+  5804	                          
+  5805	                          const qty = Number(manualSelectedQuantity) || 1;
+  5806	                          const existingIndex = manualOrderItems.findIndex(item => item.id === finalId);
+  5807	                          if (existingIndex > -1) {
+  5808	                            const updated = [...manualOrderItems];
+  5809	                            updated[existingIndex].quantity += qty;
+  5810	                            if (String(manualSelectedPrice) !== '') updated[existingIndex].price = Number(manualSelectedPrice);
+  5811	                            setManualOrderItems(updated);
+  5812	                          } else {
+  5813	                            setManualOrderItems(prev => [...prev, {
+  5814	                              id: finalId, name: finalName, quantity: qty, price: Number(manualSelectedPrice)
+  5815	                            }]);
+  5816	                          }
+  5817	                          setManualSelectedQuantity(1);
+  5818	                          setManualSelectedPrice('');
+  5819	                          setManualSelectedProductId('');
+  5820	                          setManualArticleSearch('');
+  5821	                        }} className="bg-[#2e7d32] hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold h-[34px]">
+  5822	                          যুক্ত করুন
+  5823	                        </button>
+  5824	                      </div>
+  5825	                      {manualSelectedProductId && products.find(p => p.id === manualSelectedProductId) && (
+  5826	                        <p className="text-[10px] text-emerald-600 font-bold">{products.find(p => p.id === manualSelectedProductId)?.name}</p>
+  5827	                      )}
+  5828	                    </div>
+  5829	                  </div>
+  5830	
+  5831	                  {/* Right Column */}
+  5832	                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col">
+  5833	                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">অর্ডার তালিকা ও বিল</h4>
+  5834	                    
+  5835	                    <div className="flex-1 overflow-y-auto mb-4 border border-slate-200 bg-white rounded-xl divide-y divide-slate-100">
+  5836	                      {manualOrderItems.length === 0 ? (
+  5837	                         <div className="p-4 text-center text-slate-400 text-xs">কোন পণ্য নেই</div>
+  5838	                      ) : (
+  5839	                         manualOrderItems.map((item, idx) => (
+  5840	                           <div key={item.id} className="p-2.5 flex items-center justify-between text-xs">
+  5841	                             <div className="flex gap-2 items-center min-w-0">
+  5842	                               <span className="text-slate-400 w-4">{idx + 1}.</span>
+  5843	                               <div className="truncate">
+  5844	                                 <p className="font-bold text-slate-800 truncate">{item.name}</p>
+  5845	                                 <p className="text-[10px] text-slate-500">৳{item.price.toLocaleString('bn-BD')} × {item.quantity}</p>
+  5846	                               </div>
+  5847	                             </div>
+  5848	                             <div className="flex items-center gap-3 pl-2">
+  5849	                               <span className="font-bold">৳{(item.price * item.quantity).toLocaleString('bn-BD')}</span>
+  5850	                               <button type="button" onClick={() => setManualOrderItems(prev => prev.filter(p => p.id !== item.id))} className="text-slate-400 hover:text-rose-500"><Trash2 size={14}/></button>
+  5851	                             </div>
+  5852	                           </div>
+  5853	                         ))
+  5854	                      )}
+  5855	                    </div>
+  5856	
+  5857	                    <div className="space-y-3 text-xs">
+  5858	                      <div className="flex justify-between text-slate-600">
+  5859	                        <span>সাবটোটাল</span>
+  5860	                        <span className="font-bold">৳{manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toLocaleString('bn-BD')}</span>
+  5861	                      </div>
+  5862	                      
+  5863	                      {!manualOrderIsDue && (
+  5864	                        <div className="flex items-center justify-between gap-2">
+  5865	                          <span className="text-slate-600">ডেলিভারি চার্জ</span>
+  5866	                          <input type="number" value={manualDeliveryCharge} onChange={e => setManualDeliveryCharge(e.target.value === '' ? '' : Number(e.target.value))} className="w-20 px-2 py-1 rounded border border-slate-200 text-right outline-none focus:border-[#2e7d32]" />
+  5867	                        </div>
+  5868	                      )}
+  5869	
+  5870	                      {!manualOrderIsDue && (
+  5871	                        <div className="flex items-center justify-between gap-2">
+  5872	                          <span className="text-slate-600">কন্ডিশন চার্জ (১%)</span>
+  5873	                          <input type="number" value={manualConditionCharge} onChange={e => setManualConditionCharge(e.target.value === '' ? '' : Number(e.target.value))} className="w-20 px-2 py-1 rounded border border-slate-200 text-right outline-none focus:border-[#2e7d32]" />
+  5874	                        </div>
+  5875	                      )}
+  5876	
+  5877	                      <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+  5878	                        <span className="text-slate-800 font-bold">সর্বমোট</span>
+  5879	                        <span className="text-emerald-700 font-black text-lg">
+  5880	                          ৳{(manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) + (!manualOrderIsDue ? (Number(manualDeliveryCharge) || 0) + (Number(manualConditionCharge) || 0) : 0)).toLocaleString('bn-BD')}
+  5881	                        </span>
+  5882	                      </div>
+  5883	
+  5884	                      <div className="pt-2">
+  5885	                        <label className="flex items-center gap-2 cursor-pointer">
+  5886	                          <input type="checkbox" checked={manualOrderIsDue} onChange={e => {
+  5887	                            setManualOrderIsDue(e.target.checked);
+  5888	                            if (e.target.checked) {
+  5889	                              setManualDeliveryCharge(0);
+  5890	                              setManualConditionCharge(0);
+  5891	                            }
+  5892	                          }} className="w-4 h-4 rounded border-slate-300 text-[#2e7d32] focus:ring-[#2e7d32]" />
+  5893	                          <span className="text-sm font-bold text-slate-700">পুরো বিলটি বকেয়া (Due) হিসেবে রাখুন</span>
+  5894	                        </label>
+  5895	                      </div>
+  5896	                    </div>
+  5897	                  </div>
+  5898	                </div>
+  5899	              ) : (
+  5900	                <div className="text-center py-10">
+  5901	                   <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={40} /></div>
+  5902	                   <h3 className="text-xl font-bold text-slate-800 mb-2">অর্ডার সফলভাবে তৈরি হয়েছে!</h3>
+  5903	                   <p className="text-slate-500 mb-6">Order ID: {createdOrderForActions.id}</p>
+  5904	                   <div className="flex gap-4 justify-center">
+  5905	                     <button onClick={() => window.open(`/print-invoice?orderId=${createdOrderForActions.id}&name=${encodeURIComponent(createdOrderForActions.customerName)}&phone=${encodeURIComponent(createdOrderForActions.phone)}&amount=${createdOrderForActions.total}`, '_blank')} className="bg-emerald-50 text-emerald-700 px-6 py-2 rounded-xl font-bold hover:bg-emerald-100 flex gap-2 items-center"><FileText size={16}/> প্রিন্ট ইনভয়েস</button>
+  5906	                     <button onClick={() => {
+  5907	                        setCourierBookingData({
+  5908	                          invoice: createdOrderForActions.id,
+  5909	                          recipient_name: createdOrderForActions.customerName,
+  5910	                          recipient_phone: createdOrderForActions.phone,
+  5911	                          recipient_address: createdOrderForActions.address,
+  5912	                          cod_amount: createdOrderForActions.total.toString(),
+  5913	                          note: ''
+  5914	                        });
+  5915	                        setIsManualOrderModalOpen(false);
+  5916	                        setActiveTab('courier');
+  5917	                        setIsCourierModalOpen(true);
+  5918	                        setCreatedOrderForActions(null);
+  5919	                     }} className="bg-blue-50 text-blue-700 px-6 py-2 rounded-xl font-bold hover:bg-blue-100 flex gap-2 items-center"><Truck size={16}/> কুরিয়ার বুকিং</button>
+  5920	                   </div>
+  5921	                </div>
+  5922	              )}
+  5923	            </div>
+  5924	
+  5925	            <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+  5926	              {!createdOrderForActions ? (
+  5927	                <>
+  5928	                  <button onClick={() => { setIsManualOrderModalOpen(false); setEditingOrderId(null); }} className="px-5 py-2 text-slate-600 bg-white border border-slate-200 rounded-xl font-bold text-sm hover:bg-slate-50">
+  5929	                    বাতিল করুন
+  5930	                  </button>
+  5931	                  <button onClick={() => {
+  5932	                      if (!manualOrderCustomerName || !manualOrderPhone || !manualOrderAddress) {
+  5933	                        alert('গ্রাহকের নাম, ফোন ও ঠিকানা পূরণ করুন।');
+  5934	                        return;
+  5935	                      }
+  5936	                      if (manualOrderItems.length === 0) {
+  5937	                        alert('কমপক্ষে একটি পণ্য যুক্ত করুন।');
+  5938	                        return;
+  5939	                      }
+  5940	
+  5941	                      const subtotal = manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  5942	                      const grandTotal = subtotal + (!manualOrderIsDue ? ((Number(manualDeliveryCharge)||0) + (Number(manualConditionCharge)||0)) : 0);
+  5943	
+  5944	                      // Handle Stock Update (Delta if editing)
+  5945	                      const oldOrder = editingOrderId ? orders.find(o => o.id === editingOrderId) : null;
+  5946	                      
+  5947	                      const stockUpdates = new Map();
+  5948	                      if (oldOrder && oldOrder.status !== 'Cancelled') {
+  5949	                        oldOrder.items.forEach(oldItem => {
+  5950	                          const current = stockUpdates.get(oldItem.id) || (products.find(p => p.id === oldItem.id)?.stock || 0);
+  5951	                          stockUpdates.set(oldItem.id, current + oldItem.quantity);
+  5952	                        });
+  5953	                      }
+  5954	                      
+  5955	                      manualOrderItems.forEach(newItem => {
+  5956	                        const current = stockUpdates.has(newItem.id) ? stockUpdates.get(newItem.id) : (products.find(p => p.id === newItem.id)?.stock || 0);
+  5957	                        stockUpdates.set(newItem.id, Math.max(0, current - newItem.quantity));
+  5958	                      });
+  5959	                      
+  5960	                      stockUpdates.forEach((newStock, productId) => {
+  5961	                        const prod = products.find(p => p.id === productId);
+  5962	                        if (prod) updateProduct({ ...prod, stock: newStock });
+  5963	                      });
+  5964	
+  5965	                      const newManualOrderObj = {
+  5966	                        id: editingOrderId || (() => {
+  5967	                          const maxId = orders.reduce((max, o) => {
+  5968	                            if (o.id.startsWith('MKO-')) {
+  5969	                              const num = parseInt(o.id.replace('MKO-', ''));
+  5970	                              return num > max ? num : max;
+  5971	                            }
+  5972	                            return max;
+  5973	                          }, 0);
+  5974	                          return `MKO-${maxId + 1}`;
+  5975	                        })(),
+  5976	                        customerName: manualOrderCustomerName,
+  5977	                        phone: manualOrderPhone,
+  5978	                        address: manualOrderAddress,
+  5979	                        items: manualOrderItems,
+  5980	                        subtotal,
+  5981	                        deliveryCharge: !manualOrderIsDue ? (Number(manualDeliveryCharge)||0) : 0,
+  5982	                        conditionCharge: !manualOrderIsDue ? (Number(manualConditionCharge)||0) : 0,
+  5983	                        total: grandTotal,
+  5984	                        date: oldOrder ? oldOrder.date : new Date().toISOString(),
+  5985	                        status: oldOrder ? oldOrder.status : 'Pending' as const
+  5986	                      };
+  5987	
+  5988	                      if (editingOrderId) {
+  5989	                        const updatedOrders = orders.map(o => o.id === editingOrderId ? newManualOrderObj : o);
+  5990	                        // Save logic to updateOrder context ideally, but assuming addSimulatedOrder can update if we handle it or we use updateOrder function
+  5991	                        // Actually addSimulatedOrder handles new, we might need updateOrder here if we have it, but for simulation let's use the local state or context.
+  5992	                        // We will call addSimulatedOrder and the context needs to support updating.
+  5993	                        // Usually, order update is handled in context.
+  5994	                        // Update in firestore
+  5995	                        try {
+  5996	                           updateDoc(doc(db, 'orders', editingOrderId), newManualOrderObj);
+  5997	                        } catch (e) {
+  5998	                           console.error('Failed to update order', e);
+  5999	                        }
+  6000	                      } else {
+  6001	                        addSimulatedOrder(newManualOrderObj);
+  6002	                      }
+  6003	
+  6004	                      if (manualOrderIsDue && !editingOrderId) {
+  6005	                        const addedDue = {
+  6006	                          id: `d-${Date.now()}`,
+  6007	                          customerName: manualOrderCustomerName,
+  6008	                          phone: manualOrderPhone,
+  6009	                          amount: grandTotal,
+  6010	                          paidAmount: 0,
+  6011	                          date: new Date().toISOString(),
+  6012	                          status: 'Unpaid' as const
+  6013	                        };
+  6014	                        setDues([...dues, addedDue]);
+  6015	                      }
+  6016	                      
+  6017	                      addNotification('সফল', editingOrderId ? 'অর্ডার আপডেট হয়েছে।' : 'অর্ডার তৈরি হয়েছে।');
+  6018	                      if (soundEnabled) triggerSound();
+  6019	                      
+  6020	                      if (!editingOrderId) {
+  6021	                        setCreatedOrderForActions(newManualOrderObj);
+  6022	                      } else {
+  6023	                        setIsManualOrderModalOpen(false);
+  6024	                        setEditingOrderId(null);
+  6025	                        setManualOrderCustomerName('');
+  6026	                        setManualOrderPhone('');
+  6027	                        setManualOrderAddress('');
+  6028	                        setManualOrderItems([]);
+  6029	                      }
+  6030	                  }} className="px-5 py-2 bg-[#2e7d32] text-white rounded-xl font-bold text-sm hover:bg-emerald-700">
+  6031	                    {editingOrderId ? 'আপডেট করুন' : 'অর্ডার নিশ্চিত করুন'}
+  6032	                  </button>
+  6033	                </>
+  6034	              ) : (
+  6035	                <button onClick={() => {
+  6036	                  setIsManualOrderModalOpen(false);
+  6037	                  setCreatedOrderForActions(null);
+  6038	                  setManualOrderCustomerName('');
+  6039	                  setManualOrderPhone('');
+  6040	                  setManualOrderAddress('');
+  6041	                  setManualOrderItems([]);
+  6042	                  setEditingOrderId(null);
+  6043	                }} className="px-5 py-2 bg-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-300">
+  6044	                  বন্ধ করুন
+  6045	                </button>
+  6046	              )}
+  6047	            </div>
+  6048	          </div>
+  6049	        </div>
+  6050	      )}

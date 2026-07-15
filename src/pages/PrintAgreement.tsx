@@ -24,12 +24,12 @@ export default function PrintAgreement() {
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; }
           .page-break { page-break-before: always; }
-          @page { margin: 1in; }
+          @page { size: legal; margin: 1in; }
         }
       `}} />
       
       {/* Page 1 */}
-      <div className="max-w-4xl mx-auto p-8 text-sm leading-relaxed relative" style={{ minHeight: '10in' }}>
+      <div className="max-w-4xl mx-auto p-8 text-sm leading-relaxed relative" style={{ minHeight: '12in' }}>
         <div className="text-center mb-8">
           <h2 className="text-xl font-bold mb-2">বিসমিল্লাহির রাহমানির রাহিম</h2>
           <h1 className="text-2xl font-black mb-4">*** ক্রয় বিক্রয় চুক্তিনামা দলিল ***</h1>
@@ -102,7 +102,7 @@ export default function PrintAgreement() {
       <div className="page-break"></div>
       
       {/* Page 2 */}
-      <div className="max-w-4xl mx-auto p-8 text-sm leading-relaxed relative" style={{ minHeight: '10in' }}>
+      <div className="max-w-4xl mx-auto p-8 text-sm leading-relaxed relative" style={{ minHeight: '12in' }}>
         <div className="text-center mb-8 font-bold">পাতা - ০২</div>
         
         <div className="flex justify-end mb-16 h-32 relative">
@@ -147,7 +147,7 @@ export default function PrintAgreement() {
       <div className="page-break"></div>
       
       {/* Page 3 */}
-      <div className="max-w-4xl mx-auto p-8 text-sm leading-relaxed relative" style={{ minHeight: '10in' }}>
+      <div className="max-w-4xl mx-auto p-8 text-sm leading-relaxed relative" style={{ minHeight: '12in' }}>
         <div className="text-center mb-8 font-bold">পাতা-০৩</div>
         
         <div className="flex justify-end mb-16 h-32 relative">

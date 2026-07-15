@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { PackagePlus, ExternalLink, RefreshCw, Boxes, ArrowRightLeft, SlidersHorizontal, Building } from "lucide-react";
+import { PackagePlus, ExternalLink, RefreshCw, Boxes, ArrowRightLeft, SlidersHorizontal, Building, MapPin, Minus } from "lucide-react";
 import StaffPortal from '../components/admin/StaffPortal';
 import { FileText, 
   Package, 
-  ShoppingBag, 
+  ShoppingBag, ShoppingCart, 
   Users, UserCheck, Camera, 
   BarChart3, 
   Settings, 
@@ -46,13 +46,15 @@ import { FileText,
   BookOpen,
   PhoneCall,
   CheckSquare,
-  Truck,
-  Printer
+  Truck, Upload,
+  Printer,
+  ScanBarcode,
+  ScanLine
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product, Investor } from '../types';
 import { db, courierHistoryCollection } from '../lib/firebase';
-import { onSnapshot, setDoc, doc } from 'firebase/firestore';
+import { onSnapshot, setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 
 const safeJSONParse = (data, fallback) => {
@@ -66,7 +68,12 @@ const safeJSONParse = (data, fallback) => {
 
 export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mk_admin_authenticated') === 'true';
+    }
+    return false;
+  });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -74,7 +81,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [error, setError] = useState('');
 
   // Tab routing
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'receiving' | 'courier' | 'inventory' | 'orders' | 'customers' | 'settings' | 'finances' | 'marketing' | 'dues' | 'agreement' | 'investors' | 'staff'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'receiving' | 'courier' | 'inventory' | 'orders' | 'customers' | 'settings' | 'finances' | 'marketing' | 'dues' | 'agreement' | 'investors' | 'staff' | 'scan_status' | 'scan_article' | 'scan_order'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Language translation state
@@ -95,6 +102,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       finances: 'আয় ও ব্যয় ট্র্যাকার',
       dues: 'বকেয়া খাতা',
       marketing: 'মার্কেটিং ও ডিসকাউন্ট',
+      scanStatus: 'স্ক্যান করে স্ট্যাটাস',
+      scanArticle: 'স্ক্যান করে আর্টিকেল',
+      scanOrder: 'স্ক্যান করে অর্ডার',
       logout: 'প্রস্থান করুন',
       languageLabel: 'ভাষা পরিবর্তন',
       ordersTrack: 'অর্ডার সমূহ',
@@ -115,6 +125,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       finances: 'Income & Expense',
       dues: 'Due Ledger',
       marketing: 'Marketing & Discount',
+      scanStatus: 'Scan & Update Status',
+      scanArticle: 'Scan & Add Article',
+      scanOrder: 'Scan & Create Order',
       logout: 'Logout',
       languageLabel: 'Language',
       ordersTrack: 'All Orders',
@@ -152,23 +165,33 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   // Manual Order states
   const [isManualOrderModalOpen, setIsManualOrderModalOpen] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [manualOrderCustomerName, setManualOrderCustomerName] = useState('');
   const [manualOrderPhone, setManualOrderPhone] = useState('');
   const [manualOrderAddress, setManualOrderAddress] = useState('');
   const [manualOrderIsDue, setManualOrderIsDue] = useState(false);
   const [manualOrderItems, setManualOrderItems] = useState<{ id: string; name: string; quantity: number; price: number }[]>([]);
+
+  // Scan Tool States
+  const [scanStatusInput, setScanStatusInput] = useState('');
+  const [scanStatusTarget, setScanStatusTarget] = useState('Delivered');
+  const [scanArticleInput, setScanArticleInput] = useState('');
+  const [scanArticleProduct, setScanArticleProduct] = useState<Product | null>(null);
+  const [scanArticleBoxes, setScanArticleBoxes] = useState('0');
+  const [scanArticlePairs, setScanArticlePairs] = useState('0');
+  const [scanOrderInput, setScanOrderInput] = useState('');
   const [manualSelectedProductId, setManualSelectedProductId] = useState('');
   const [manualSelectedQuantity, setManualSelectedQuantity] = useState<number | ''>('');
   const [manualSelectedPrice, setManualSelectedPrice] = useState<number | ''>('');
   const [manualArticleSearch, setManualArticleSearch] = useState('');
-  const [manualDeliveryCharge, setManualDeliveryCharge] = useState<number>(0);
-  const [manualConditionCharge, setManualConditionCharge] = useState<number>(0);
+  const [manualDeliveryCharge, setManualDeliveryCharge] = useState<number | ''>('');
+  const [manualConditionCharge, setManualConditionCharge] = useState<number | ''>('');
 
   // Auto calculate condition charge
   useEffect(() => {
     if (!manualOrderIsDue) { // if COD
       const subtotal = manualOrderItems.reduce((sum, item) => sum + (((item as any).price || 0) * item.quantity), 0);
-      const totalForCondition = subtotal + manualDeliveryCharge;
+      const totalForCondition = subtotal + (Number(manualDeliveryCharge) || 0);
       const newCharge = totalForCondition > 0 ? Math.round(totalForCondition * 0.01) : 0;
       setManualConditionCharge(newCharge);
     } else {
@@ -414,7 +437,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
          const booking = updatedHistory[i];
          if (booking.status !== 'delivered' && booking.status !== 'cancelled') {
             try {
-                const response = await fetch(`https://portal.packzy.com/api/v1/status_by_cid/${booking.consignment_id}`, {
+                const api_url = `https://portal.packzy.com/api/v1/status_by_cid/${booking.consignment_id}`;
+                const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(api_url)}`, {
                    headers: {
                       "Api-Key": "2p80tiyscewtjoczqbqy9fcugkhpocvz",
                       "Secret-Key": "y0i0bp251lyktq4vx8fwcr2l"
@@ -428,8 +452,27 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             updatedHistory[i].status = newStatus;
                             updatedCount++;
                             if (newStatus === 'delivered') {
-                                const amt = Number(booking.amount || booking.cod_amount) || 0;
-                                
+                                const codAmount = Number(data.cod_amount !== undefined ? data.cod_amount : (booking.amount || booking.cod_amount)) || 0;
+                                const deliveryCharge = Number(data.delivery_charge !== undefined ? data.delivery_charge : (data.delivery_fee !== undefined ? data.delivery_fee : 0));
+                                const codCharge = Number(data.cod_charge !== undefined ? data.cod_charge : (data.cod_fee !== undefined ? data.cod_fee : 0));
+                                const netAmount = Math.max(0, codAmount - deliveryCharge - codCharge);
+
+                                updatedHistory[i].delivery_charge = deliveryCharge;
+                                updatedHistory[i].cod_charge = codCharge;
+
+                                newTransactions.push({
+                                  id: Math.random().toString(36).substr(2, 9),
+                                  type: 'income' as const,
+                                  category: 'কুরিয়ার ডেলিভারি',
+                                  amount: netAmount,
+                                  date: new Date().toISOString(),
+                                  note: `কুরিয়ার পার্সেল (${booking.tracking_code}) ডেলিভারি সম্পন্ন (ডেলিভারি চার্জ ৳${deliveryCharge} এবং কন্ডিশন চার্জ ৳${codCharge} বাদ দিয়ে)`
+                                });
+                            } else {
+                                const deliveryCharge = Number(data.delivery_charge !== undefined ? data.delivery_charge : (data.delivery_fee !== undefined ? data.delivery_fee : 0));
+                                const codCharge = Number(data.cod_charge !== undefined ? data.cod_charge : (data.cod_fee !== undefined ? data.cod_fee : 0));
+                                updatedHistory[i].delivery_charge = deliveryCharge;
+                                updatedHistory[i].cod_charge = codCharge;
                             }
                         }
                     }
@@ -450,6 +493,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
              setTransactions(prev => [...newTransactions, ...prev]);
              addNotification('আয় আপডেট 💰', 'ডেলিভারি সম্পন্ন হওয়া অর্ডারগুলোর টাকা আয় অপশনে যুক্ত হয়েছে!');
          }
+         addNotification('সিঙ্ক সম্পন্ন 🔄', `${updatedCount} টি পার্সেলের স্ট্যাটাস রিয়্যাল-টাইম আপডেট করা হয়েছে!`);
+      } else {
+         addNotification('আপ-টু-ডেট 🔄', 'সব পার্সেলের স্ট্যাটাস ইতিমধ্যেই সর্বশেষ অবস্থায় রয়েছে।');
       }
     } catch (err) {
       console.error(err);
@@ -465,6 +511,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   }, [activeTab]);
   const [isCourierBookingOpen, setIsCourierBookingOpen] = useState(false);
+  const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [autoBookingResult, setAutoBookingResult] = useState<any | null>(null);
   const [courierBookingData, setCourierBookingData] = useState({
     invoice: '',
@@ -481,6 +528,19 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [receiveQtys, setReceiveQtys] = useState<Record<string, string>>({});
   const [lastReceivedMsg, setLastReceivedMsg] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const articleInputRef = useRef<HTMLInputElement>(null);
+
+  const [isStockAdjustmentModalOpen, setIsStockAdjustmentModalOpen] = useState(false);
+  const [selectedStockProduct, setSelectedStockProduct] = useState<any | null>(null);
+  const [addBoxes, setAddBoxes] = useState('1');
+  const [addPairs, setAddPairs] = useState('0');
+  const [adjustmentPrice, setAdjustmentPrice] = useState('');
+  const [adjustmentDiscountPrice, setAdjustmentDiscountPrice] = useState('');
+
+  // Quick Add Product states for Inventory page
+  const [quickArticle, setQuickArticle] = useState('');
+  const [quickName, setQuickName] = useState('');
+  const [quickPrice, setQuickPrice] = useState('');
+  const [quickStockBoxes, setQuickStockBoxes] = useState('24');
 
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
@@ -510,12 +570,25 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'Mk admin' && password === 'Mkgroupbd.ltd@@') {
+    const u = username.trim().toLowerCase();
+    const p = password.trim();
+    if (u === 'mk admin' && p === 'Mkgroupbd.ltd@@') {
       setIsAuthenticated(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mk_admin_authenticated', 'true');
+      }
       setError('');
     } else {
       setError('ভুল ইউজারনেম বা পাসওয়ার্ড! আবার চেষ্টা করুন।');
     }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAuthenticated(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('mk_admin_authenticated');
+    }
+    onLogout();
   };
 
 
@@ -577,6 +650,17 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setIsAgreementSaved(true);
     alert(`বিনিয়োগকারী সফলভাবে সংরক্ষিত হয়েছে! একাউন্ট নম্বর: ${newInvestor.accountNumber}\nএখন আপনি চুক্তিনামা প্রিন্ট করতে পারবেন।`);
   };
+
+
+  useEffect(() => {
+    if (selectedStockProduct) {
+      setAdjustmentPrice(selectedStockProduct.originalPrice?.toString() || '');
+      setAdjustmentDiscountPrice(selectedStockProduct.discountedPrice?.toString() || '');
+    } else {
+      setAdjustmentPrice('');
+      setAdjustmentDiscountPrice('');
+    }
+  }, [selectedStockProduct]);
 
 
   // Investors Management
@@ -641,8 +725,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   // Courier booking mockup states
   const [bookingOrder, setBookingOrder] = useState<any | null>(null);
-  const [courierService, setCourierService] = useState<'pathao' | 'redx' | 'steadfast'>('pathao');
+  const [courierService, setCourierService] = useState<'pathao' | 'redx' | 'steadfast'>('steadfast');
   const [weightKg, setWeightKg] = useState('1.0');
+  const [deliveryType, setDeliveryType] = useState<'home' | 'point'>('home');
+  const [bookingCategory, setBookingCategory] = useState('ব্যাগ ও জুতো');
   const [bookingResult, setBookingResult] = useState<any | null>(null);
 
   // CSV Orders Report exporter and downloader
@@ -945,6 +1031,49 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     alert('সফলভাবে ল্যান্ডিং পেজ লিঙ্ক কপি হয়েছে!\n\nএই লিঙ্কটি কপি করে আপনি সরাসরি ফেসবুকে বা অন্য যেকোনো বিজ্ঞাপনে ব্যবহার করতে পারবেন।\n\nলিঙ্ক: ' + link);
   };
 
+  // Quick Add Product for Inventory Control Tab
+  const handleQuickAddProduct = () => {
+    if (!quickArticle.trim()) {
+      alert('দয়া করে আর্টিকেল নম্বর দিন।');
+      return;
+    }
+    if (!quickName.trim()) {
+      alert('দয়া করে পণ্যের নাম দিন।');
+      return;
+    }
+    if (!quickPrice.trim() || isNaN(parseFloat(quickPrice)) || parseFloat(quickPrice) <= 0) {
+      alert('সবচেয়ে সঠিক মূল্য দিন।');
+      return;
+    }
+
+    const boxesNum = parseInt(quickStockBoxes) || 0;
+    const initialStock = boxesNum;
+
+    const payload = {
+      name: quickName.trim(),
+      originalPrice: parseFloat(quickPrice) * 24,
+      category: 'জুতো', // Default category for shoe warehouse inventory
+      weight: '১ জোড়া',
+      image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', // default stylish placeholder
+      isNew: true,
+      description: `আর্টিকেল ${quickArticle.trim()} - প্রিমিয়াম কোয়ালিটি পণ্য`,
+      article: quickArticle.trim(),
+      stock: initialStock,
+      piecesPerBox: 24,
+      isHidden: false
+    };
+
+    addProduct(payload);
+    addNotification('পণ্য যুক্ত', `আর্টিকেল ${quickArticle.trim()} অনুযায়ী নতুন পণ্য "${quickName.trim()}" এবং মূল্য ৳${quickPrice} ইনভেন্টরিতে যুক্ত করা হয়েছে।`);
+    
+    // Reset fields
+    setQuickArticle('');
+    setQuickName('');
+    setQuickPrice('');
+    setQuickStockBoxes('0');
+    alert('নতুন পণ্য ও মূল্য সফলভাবে ইনভেন্টরিতে যুক্ত করা হয়েছে!');
+  };
+
   // Product submission form
   const handleProductSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1197,7 +1326,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
           {/* Back to store link */}
           <button 
-            onClick={onLogout}
+            onClick={handleAdminLogout}
             className="mt-6 text-xs font-black text-slate-400 hover:text-emerald-700 transition-all duration-200 flex items-center justify-center gap-1.5 mx-auto group"
           >
             <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -1296,6 +1425,34 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <UserCheck size={18} /> স্টাফ পোর্টাল
           </button>
 
+          <div className="pt-4 pb-1">
+            <span className="px-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">স্ক্যান ও টুলস</span>
+          </div>
+
+          <button 
+            onClick={() => setActiveTab('scan_status')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'scan_status' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <ScanBarcode size={18} /> {t.scanStatus}
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('scan_article')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'scan_article' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <ScanLine size={18} /> {t.scanArticle}
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('scan_order')} 
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all text-left ${activeTab === 'scan_order' ? 'bg-[#2e7d32] text-white shadow-lg shadow-[#2e7d32]/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <ScanBarcode size={18} /> {t.scanOrder}
+          </button>
+
+          <div className="pt-4 pb-1">
+            <span className="px-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">অন্যান্য</span>
+          </div>
 
           <button 
             onClick={() => setActiveTab('marketing')} 
@@ -1344,7 +1501,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
         <div className="p-4 border-t border-slate-800 bg-slate-950/40">
           <button 
-            onClick={onLogout} 
+            onClick={handleAdminLogout} 
             className="flex items-center gap-3 w-full hover:bg-rose-500/10 hover:text-rose-400 px-4 py-3 rounded-xl text-sm font-bold transition-all text-rose-300"
           >
             <LogOut size={18} /> {t.logout}
@@ -1438,6 +1595,34 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <UserCheck size={16} /> স্টাফ পোর্টাল
               </button>
 
+              <div className="pt-4 pb-1">
+                <span className="px-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">স্ক্যান ও টুলস</span>
+              </div>
+
+              <button 
+                onClick={() => { setActiveTab('scan_status'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'scan_status' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                <ScanBarcode size={16} /> {t.scanStatus}
+              </button>
+              
+              <button 
+                onClick={() => { setActiveTab('scan_article'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'scan_article' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                <ScanLine size={16} /> {t.scanArticle}
+              </button>
+
+              <button 
+                onClick={() => { setActiveTab('scan_order'); setIsMobileMenuOpen(false); }} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all text-left ${activeTab === 'scan_order' ? 'bg-[#2e7d32] text-white' : 'text-slate-400 hover:bg-slate-800'}`}
+              >
+                <ScanBarcode size={16} /> {t.scanOrder}
+              </button>
+
+              <div className="pt-4 pb-1">
+                <span className="px-4 text-[10px] text-slate-500 font-bold uppercase tracking-wider">অন্যান্য</span>
+              </div>
 
               <button 
                 onClick={() => { setActiveTab('marketing'); setIsMobileMenuOpen(false); }} 
@@ -1485,7 +1670,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </div>
 
             <div className="p-4 border-t border-slate-800">
-              <button onClick={() => { onLogout(); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-xs font-bold transition-all text-left text-rose-400 hover:text-rose-50 hover:bg-rose-500/20" title="লগআউট">
+              <button onClick={() => { handleAdminLogout(); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-xs font-bold transition-all text-left text-rose-400 hover:text-rose-50 hover:bg-rose-500/20" title="লগআউট">
                 <LogOut size={16} /> লগআউট
               </button>
             </div>
@@ -1599,6 +1784,239 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Stock Adjustment Modal */}
+      {isStockAdjustmentModalOpen && selectedStockProduct && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsStockAdjustmentModalOpen(false)}></div>
+          <div className="bg-white rounded-2xl w-full max-w-md relative z-10 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/50 rounded-t-2xl">
+              <div>
+                <h3 className="font-black text-slate-800 flex items-center gap-2"><SlidersHorizontal size={18} className="text-emerald-600" /> স্টক সমন্বয় / যোগ</h3>
+                <p className="text-[10px] text-slate-500 mt-1">পণ্যের বর্তমান স্টকের সাথে নতুন বক্স বা জোড়া যোগ/বিয়োগ করুন।</p>
+              </div>
+              <button onClick={() => setIsStockAdjustmentModalOpen(false)} className="text-slate-400 hover:text-rose-500 bg-white hover:bg-rose-50 p-1.5 rounded-lg transition-colors shadow-sm border border-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              {/* Product Selector */}
+              <div>
+                <label className="block text-[11px] font-black text-slate-500 mb-1.5 uppercase tracking-wider">পণ্য নির্বাচন করুন (Select Product)</label>
+                <select
+                  value={selectedStockProduct.id}
+                  onChange={(e) => {
+                    const found = products.find(p => p.id === e.target.value);
+                    if (found) setSelectedStockProduct(found);
+                  }}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold focus:outline-[#2e7d32] bg-white cursor-pointer"
+                >
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.article ? `[${p.article}] ` : ''}{p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Product Info */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                <div className="text-[10px] text-slate-400 font-mono font-bold tracking-wider">সিলেক্টেড পণ্য</div>
+                <div className="font-extrabold text-slate-900 text-sm mt-0.5">{selectedStockProduct.article || 'N/A'}</div>
+                <div className="text-xs text-slate-500 font-bold">{selectedStockProduct.name}</div>
+                
+                <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex justify-between items-center text-xs font-bold">
+                  <span className="text-slate-500">বর্তমান স্টক:</span>
+                  <span className="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg text-[11px] font-black">
+                    {(() => {
+                      const curr = selectedStockProduct.stock || 0;
+                      const b = Math.floor(curr / 24);
+                      const p = curr % 24;
+                      let t = '';
+                      if (b > 0) t += `${b} বক্স `;
+                      if (p > 0) t += `${p} জোড়া`;
+                      if (curr === 0) t = '০ জোড়া (স্টক নেই)';
+                      return `${t} (${curr} পিস)`;
+                    })()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Adjustment Fields */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">বক্স সংখ্যা (১ বক্স = ২৪ পিস)</label>
+                  <input 
+                    type="number" 
+                    value={addBoxes}
+                    onChange={(e) => setAddBoxes(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-emerald-600 outline-none text-sm text-slate-800 font-black text-center transition-colors" 
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">জোড়া/পিস সংখ্যা</label>
+                  <input 
+                    type="number" 
+                    value={addPairs}
+                    onChange={(e) => setAddPairs(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-emerald-600 outline-none text-sm text-slate-800 font-black text-center transition-colors" 
+                    min="0"
+                  />
+                </div>
+              </div>
+
+              {/* Price adjustments within stock adjustment */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-3">
+                <div className="text-[10px] text-slate-400 font-mono font-bold tracking-wider uppercase">পণ্যের মূল্য সংশোধন করুন</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">আসল মূল্য (৳)</label>
+                    <input 
+                      type="number" 
+                      value={adjustmentPrice}
+                      onChange={(e) => setAdjustmentPrice(e.target.value)}
+                      placeholder="যেমন: ৮৫০"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white outline-none text-xs text-slate-800 font-bold focus:border-emerald-600 transition-colors" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">অফার মূল্য (৳)</label>
+                    <input 
+                      type="number" 
+                      value={adjustmentDiscountPrice}
+                      onChange={(e) => setAdjustmentDiscountPrice(e.target.value)}
+                      placeholder="যেমন: ৭৯৯"
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white outline-none text-xs text-slate-800 font-bold focus:border-emerald-600 transition-colors" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview Calculation */}
+              {(() => {
+                const boxesNum = parseInt(addBoxes) || 0;
+                const pairsNum = parseInt(addPairs) || 0;
+                const adjustmentAmount = boxesNum * 24 + pairsNum;
+                const currentStock = selectedStockProduct.stock || 0;
+                
+                const finalAddStock = currentStock + adjustmentAmount;
+                const finalSubStock = Math.max(0, currentStock - adjustmentAmount);
+
+                const getStockDesc = (stockVal: number) => {
+                  const b = Math.floor(stockVal / 24);
+                  const p = stockVal % 24;
+                  let t = '';
+                  if (b > 0) t += `${b} বক্স `;
+                  if (p > 0) t += `${p} জোড়া`;
+                  if (stockVal === 0) t = 'স্টক নেই';
+                  return `${t} (${stockVal} pces)`;
+                };
+
+                return (
+                  <div className="bg-amber-50/50 border border-amber-100 p-3 rounded-xl space-y-1.5 text-xs font-bold text-slate-700">
+                    <div className="flex justify-between">
+                      <span>সমন্বয় পরিমাণ:</span>
+                      <span className="text-[#2e7d32]">{boxesNum} BOX + {pairsNum} PCS = {adjustmentAmount} PCS</span>
+                    </div>
+                    <div className="pt-1.5 border-t border-dashed border-slate-200 flex justify-between">
+                      <span>যোগ করলে হবে (+):</span>
+                      <span className="text-emerald-700 font-black">{getStockDesc(finalAddStock)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>বিয়োগ করলে হবে (-):</span>
+                      <span className="text-rose-700 font-black">{getStockDesc(finalSubStock)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Action Buttons */}
+              <div className="pt-2 grid grid-cols-2 gap-2">
+                <button 
+                  onClick={() => {
+                    const boxesNum = parseInt(addBoxes) || 0;
+                    const pairsNum = parseInt(addPairs) || 0;
+                    const amount = boxesNum * 24 + pairsNum;
+                    const currentStock = selectedStockProduct.stock || 0;
+                    const newStock = currentStock + amount;
+
+                    const parsedPrice = parseFloat(adjustmentPrice);
+                    const parsedDiscount = parseFloat(adjustmentDiscountPrice);
+
+                    const updatedPayload = {
+                      ...selectedStockProduct,
+                      stock: newStock,
+                      ...(isNaN(parsedPrice) ? {} : { originalPrice: parsedPrice }),
+                      discountedPrice: isNaN(parsedDiscount) || parsedDiscount <= 0 ? undefined : parsedDiscount
+                    };
+
+                    updateProduct(updatedPayload);
+                    addNotification('স্টক ও মূল্য বৃদ্ধি', `"${selectedStockProduct.name}" এর স্টকে ${boxesNum} বক্স ও ${pairsNum} জোড়া যোগ এবং মূল্য আপডেট করা হয়েছে।`);
+                    setIsStockAdjustmentModalOpen(false);
+                  }}
+                  className="py-3 px-4 rounded-xl bg-[#2e7d32] hover:bg-emerald-700 text-white font-black text-xs transition-colors flex justify-center items-center gap-1.5 shadow-md shadow-emerald-600/10 active:scale-[0.98] cursor-pointer"
+                >
+                  <Plus size={14} /> স্টক ও মূল্য যোগ (+)
+                </button>
+                <button 
+                  onClick={() => {
+                    const boxesNum = parseInt(addBoxes) || 0;
+                    const pairsNum = parseInt(addPairs) || 0;
+                    const amount = boxesNum * 24 + pairsNum;
+                    const currentStock = selectedStockProduct.stock || 0;
+                    const newStock = Math.max(0, currentStock - amount);
+
+                    const parsedPrice = parseFloat(adjustmentPrice);
+                    const parsedDiscount = parseFloat(adjustmentDiscountPrice);
+
+                    const updatedPayload = {
+                      ...selectedStockProduct,
+                      stock: newStock,
+                      ...(isNaN(parsedPrice) ? {} : { originalPrice: parsedPrice }),
+                      discountedPrice: isNaN(parsedDiscount) || parsedDiscount <= 0 ? undefined : parsedDiscount
+                    };
+
+                    updateProduct(updatedPayload);
+                    addNotification('স্টক ও মূল্য হ্রাস', `"${selectedStockProduct.name}" এর স্টক থেকে ${boxesNum} বক্স ও ${pairsNum} জোড়া বিয়োগ এবং মূল্য আপডেট করা হয়েছে।`);
+                    setIsStockAdjustmentModalOpen(false);
+                  }}
+                  className="py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs transition-colors flex justify-center items-center gap-1.5 shadow-md shadow-rose-600/10 active:scale-[0.98] cursor-pointer"
+                >
+                  <Minus size={14} /> স্টক ও মূল্য বিয়োগ (-)
+                </button>
+              </div>
+
+              <button 
+                onClick={() => {
+                  const boxesNum = parseInt(addBoxes) || 0;
+                  const pairsNum = parseInt(addPairs) || 0;
+                  const newStock = boxesNum * 24 + pairsNum;
+
+                  const parsedPrice = parseFloat(adjustmentPrice);
+                  const parsedDiscount = parseFloat(adjustmentDiscountPrice);
+
+                  const updatedPayload = {
+                    ...selectedStockProduct,
+                    stock: newStock,
+                    ...(isNaN(parsedPrice) ? {} : { originalPrice: parsedPrice }),
+                    discountedPrice: isNaN(parsedDiscount) || parsedDiscount <= 0 ? undefined : parsedDiscount
+                  };
+
+                  updateProduct(updatedPayload);
+                  addNotification('স্টক ও মূল্য সেট', `"${selectedStockProduct.name}" এর স্টক সরাসরি ${boxesNum} বক্স ও ${pairsNum} জোড়া এবং মূল্য আপডেট সেট করা হয়েছে।`);
+                  setIsStockAdjustmentModalOpen(false);
+                }}
+                className="w-full py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors flex justify-center items-center gap-1.5 cursor-pointer"
+              >
+                <Check size={14} /> সরাসরি স্টক ও মূল্য সেট করুন (=)
+              </button>
             </div>
           </div>
         </div>
@@ -1778,7 +2196,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   />
                 </div>
                 <button 
-                  onClick={onLogout} 
+                  onClick={handleAdminLogout} 
                   className="text-xs text-rose-500 hover:text-rose-700 bg-rose-50 border border-rose-100 hover:bg-rose-100 px-2 py-1.5 rounded-lg font-bold transition-all hidden sm:block"
                 >
                   স্টোরে ফিরুন
@@ -2018,11 +2436,14 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       </button>
 
                       <button 
-                        onClick={handleDownloadCSV}
-                        className="col-span-2 flex items-center justify-center gap-2 bg-[#e0f2f1] border border-[#b2dfdb] hover:bg-[#b2dfdb] text-[#00693E] py-3 px-4 rounded-xl transition-all font-black cursor-pointer hover:-translate-y-0.5"
+                        onClick={() => {
+                          const printDate = orderFilterDate || new Date().toISOString().split('T')[0];
+                          window.open(`/print-sticker?date=${printDate}`, '_blank');
+                        }}
+                        className="col-span-2 flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-[#1b4332] py-3 px-4 rounded-xl transition-all font-black cursor-pointer hover:-translate-y-0.5"
                       >
-                        <Download size={16} />
-                        <span className="text-[11px]">অর্ডারলিস্ট ডাউনলোড (Excel/CSV)</span>
+                        <Printer size={16} />
+                        <span className="text-[11px]">কুরিয়ার স্টিকার প্রিন্ট (${orderFilterDate || 'আজ'})</span>
                       </button>
 
                       <button 
@@ -2032,6 +2453,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           setManualOrderAddress('');
                           setManualOrderItems([]);
                           setManualSelectedProductId('');
+                            setManualSelectedPrice('');
                       setManualArticleSearch('');
                           setManualSelectedQuantity('');
                       setManualSelectedPrice('');
@@ -2127,7 +2549,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   <p className="text-xs text-slate-400 font-bold mt-0.5">স্টোরের সকল সক্রিয় পণ্য যোগ, এডিট বা ডিলিট করুন</p>
                 </div>
                 
-                <div className="flex gap-2 items-center shrink-0">
+                <div className="flex gap-2 items-center flex-wrap">
                   <button 
                     onClick={openAddProductModal}
                     className="flex items-center gap-1.5 bg-[#2e7d32] text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-emerald-700 transition-colors cursor-pointer"
@@ -2295,11 +2717,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </div>
           )}
 
-
-          
-
-          
-                    {/* TAB: COURIER DASHBOARD */}
+          {/* TAB: COURIER DASHBOARD */}
           {activeTab === 'courier' && (
             <div className="bg-white md:rounded-2xl border-0 md:border border-slate-100 md:shadow-sm flex flex-col min-w-0 flex-1">
               <div className="p-4 md:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
@@ -2326,7 +2744,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   >
                     <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} /> আপডেট
                   </button>
-<button
+                  <button
                     onClick={() => setIsCourierBookingOpen(true)}
                     className="bg-[#2e7d32] text-white px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer w-full sm:w-auto"
                   >
@@ -2336,6 +2754,31 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </div>
               
               <div className="flex-1 overflow-y-auto bg-slate-50/50 p-2 md:p-4">
+                {/* Real-time Courier Metrics */}
+                <div className="grid grid-cols-3 gap-3 mb-4 select-none">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-3 md:p-4 shadow-sm flex flex-col justify-between">
+                    <span className="text-[9px] md:text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">মোট বুকিং (Total Booked)</span>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-base md:text-xl font-black text-slate-900">{courierHistory.length}</span>
+                      <span className="text-[10px] md:text-xs text-slate-400 font-bold">টি পার্সেল</span>
+                    </div>
+                  </div>
+                  <div className="bg-emerald-50/30 border border-emerald-100 rounded-2xl p-3 md:p-4 shadow-sm flex flex-col justify-between">
+                    <span className="text-[9px] md:text-[10px] text-emerald-600 font-extrabold uppercase tracking-wider">ডেলিভারি সম্পন্ন (Delivered)</span>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-base md:text-xl font-black text-emerald-800">{courierHistory.filter(c => c && c.status === 'delivered').length}</span>
+                      <span className="text-[10px] md:text-xs text-emerald-600 font-bold">টি পার্সেল</span>
+                    </div>
+                  </div>
+                  <div className="bg-amber-50/30 border border-amber-100 rounded-2xl p-3 md:p-4 shadow-sm flex flex-col justify-between">
+                    <span className="text-[9px] md:text-[10px] text-amber-700 font-extrabold uppercase tracking-wider">চলমান/পেন্ডিং (Pending)</span>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-base md:text-xl font-black text-amber-900">{courierHistory.filter(c => c && c.status !== 'delivered').length}</span>
+                      <span className="text-[10px] md:text-xs text-amber-700 font-bold">টি পার্সেল</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-3">
                   {courierHistory.filter(c => c && (String(c.tracking_code || "").toLowerCase().includes(String(courierSearch || "").toLowerCase()) || String(c.customer_name || "").toLowerCase().includes(String(courierSearch || "").toLowerCase()))).length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -2344,26 +2787,52 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     </div>
                   ) : (
                     courierHistory.filter(c => c && (String(c.tracking_code || "").toLowerCase().includes(String(courierSearch || "").toLowerCase()) || String(c.customer_name || "").toLowerCase().includes(String(courierSearch || "").toLowerCase()))).map((delivery, i) => (
-                      <div key={i} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-3 group">
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-black text-slate-800">{delivery.customer_name}</span>
-                            <span className="text-[11px] text-slate-500 font-mono mt-0.5">{delivery.customer_phone}</span>
-                            <span className="text-[10px] font-bold text-slate-400 mt-1">{new Date(delivery.created_at).toLocaleDateString('en-GB')}</span>
+                      <div key={i} className="bg-gradient-to-br from-white to-slate-50/50 border border-slate-200/60 rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col gap-3.5 group relative overflow-hidden hover:-translate-y-0.5">
+                        <div className="flex justify-between items-start gap-2.5">
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-black text-slate-800 truncate">{delivery.customer_name}</span>
+                              {delivery.delivery_type === 'point' ? (
+                                <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase">Point</span>
+                              ) : (
+                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase">Home</span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-slate-500 font-mono font-bold mt-0.5">{delivery.customer_phone}</span>
+                            
+                            {/* Address details on the card */}
+                            {(delivery.recipient_address || (delivery as any).customer_address || (delivery as any).address) && (
+                              <div className="flex items-start gap-1 text-[11px] text-slate-600 mt-2 bg-white/80 p-2 rounded-xl border border-slate-100 shadow-xs max-w-md">
+                                <MapPin size={12} className="text-slate-400 mt-0.5 shrink-0" />
+                                <span className="leading-relaxed line-clamp-2">{delivery.recipient_address || (delivery as any).customer_address || (delivery as any).address}</span>
+                              </div>
+                            )}
+
+                            <span className="text-[10px] font-bold text-slate-400 mt-1.5 block">{new Date(delivery.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                           </div>
-                          <div className="text-right flex flex-col items-end">
-                            <span className="text-sm font-black text-[#2e7d32]">৳{delivery.amount}</span>
+                          
+                          <div className="text-right flex flex-col items-end shrink-0">
+                            <span className="text-sm md:text-base font-black text-[#2e7d32]">৳{delivery.amount}</span>
+                            {delivery.status === 'delivered' && (delivery.delivery_charge !== undefined || delivery.cod_charge !== undefined) && (
+                              <div className="text-[10px] text-slate-500 font-bold mt-1 text-right max-w-[180px] leading-tight">
+                                {delivery.delivery_charge !== undefined ? `ডেলিভারি: -৳${delivery.delivery_charge}` : ''}
+                                {delivery.cod_charge !== undefined ? ` | কন্ডিশন: -৳${delivery.cod_charge}` : ''}
+                                <div className="text-emerald-700 font-black mt-0.5">
+                                  আয়: ৳{Math.max(0, Number(delivery.amount || 0) - Number(delivery.delivery_charge || 0) - Number(delivery.cod_charge || 0))}
+                                </div>
+                              </div>
+                            )}
                             <div className="mt-1">
                               {delivery.status === 'delivered' ? (
-                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase border border-emerald-100/50">
+                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-emerald-100/50">
                                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Delivered
                                 </span>
                               ) : delivery.status === 'in_transit' ? (
-                                <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase border border-amber-100/50">
+                                <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-amber-100/50">
                                   <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div> In Transit
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase border border-slate-200">
+                                <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-slate-200">
                                   <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Pending
                                 </span>
                               )}
@@ -2371,28 +2840,59 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           </div>
                         </div>
                         
-                        <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
                           <div 
-                            className="bg-blue-50/50 hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-mono font-bold border border-blue-100 cursor-pointer flex items-center gap-1.5 transition-colors group/track"
+                            className="bg-blue-50/50 hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl text-xs font-mono font-black border border-blue-100 cursor-pointer flex items-center justify-between sm:justify-start gap-1.5 transition-colors group/track w-full sm:w-auto"
                             onClick={() => {
                               setCourierSearch(delivery.tracking_code);
-                              // Scroll top on mobile to see search field
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
                             title="ক্লিক করে সার্চ বক্সে কপি করুন"
                           >
-                            <Search size={12} className="text-blue-400 group-hover/track:text-blue-600" /> {delivery.tracking_code}
+                            <span className="flex items-center gap-1.5">
+                              <Search size={12} className="text-blue-400 group-hover/track:text-blue-600" /> {delivery.tracking_code}
+                            </span>
                           </div>
                           
-                          <a 
-                            href={delivery.tracking_link || 'https://steadfast.com.bd/tracking'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
-                            title="ট্র্যাক করুন"
-                          >
-                            <ExternalLink size={14} /> ট্র্যাক
-                          </a>
+                          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                            <button 
+                              onClick={() => {
+                                window.open(`/print-sticker?id=${delivery.consignment_id}&name=${encodeURIComponent(delivery.customer_name)}&phone=${encodeURIComponent(delivery.customer_phone)}&address=${encodeURIComponent(delivery.recipient_address || (delivery as any).customer_address || (delivery as any).address || '')}&amount=${delivery.amount}`, '_blank');
+                              }}
+                              className="px-2.5 py-1.5 text-xs font-black text-emerald-700 bg-emerald-50 hover:text-white hover:bg-[#2e7d32] border border-emerald-100 rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                              title="স্টিকার প্রিন্ট করুন"
+                            >
+                              <Printer size={13} /> প্রিন্ট
+                            </button>
+
+                            <a 
+                              href={delivery.tracking_link || 'https://steadfast.com.bd/tracking'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1.5 text-xs font-black text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-100 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                              title="ট্র্যাক করুন"
+                            >
+                              <ExternalLink size={13} /> ট্র্যাক
+                            </a>
+
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (window.confirm('আপনি কি নিশ্চিত যে এই কুরিয়ার বুকিংটি ডিলিট করতে চান?')) {
+                                  try {
+                                    await deleteDoc(doc(courierHistoryCollection, delivery.consignment_id.toString()));
+                                    addNotification('বুকিং ডিলিট', `কুরিয়ার বুকিং ${delivery.tracking_code} সফলভাবে মুছে ফেলা হয়েছে।`);
+                                  } catch (err: any) {
+                                    alert('মুছে ফেলতে সমস্যা হয়েছে: ' + err.message);
+                                  }
+                                }
+                              }}
+                              className="px-2.5 py-1.5 text-xs font-black text-rose-500 bg-rose-50/50 hover:text-white hover:bg-rose-600 border border-rose-100 rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                              title="বুকিং ডিলিট করুন"
+                            >
+                              <Trash2 size={13} /> ডিলিট
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))
@@ -2405,58 +2905,132 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           {/* TAB: INVENTORY CONTROL */}
           {activeTab === 'inventory' && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col min-w-0">
-              <div className="p-4 md:p-5 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap select-none">
+              <div className="p-4 md:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-800">ইনভেন্টরি কন্ট্রোল</h3>
-                  <p className="text-xs text-slate-400 font-bold mt-0.5">বিভিন্ন ওয়্যারহাউসের স্টক ব্যালেন্স পরিচালনা করুন, স্টক স্থানান্তর করুন এবং সমন্বয় লগ করুন।</p>
+                  <h3 className="font-extrabold text-base text-slate-800">ওয়্যারহাউস ম্যানেজমেন্ট</h3>
+                  <p className="text-xs text-slate-400 font-bold mt-0.5">নতুন পণ্য যুক্ত করুন এবং মূল্য ও স্টক সমন্বয় করুন।</p>
                 </div>
-                <div className="flex gap-2 items-center shrink-0">
-                  <button className="flex items-center gap-1.5 bg-white border border-slate-200 text-slate-600 px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 transition-colors cursor-pointer">
-                    <ArrowRightLeft size={14} /> স্টক ট্রান্সফার
+                <div className="flex gap-2 items-center flex-wrap sm:flex-nowrap w-full sm:w-auto">
+                  <button onClick={() => {
+                    setProductFormData({
+                      name: '',
+                      originalPrice: '',
+                      discountedPrice: '',
+                      category: 'জুতো',
+                      weight: '১ জোড়া',
+                      image: '',
+                      isNew: true,
+                      isFlashSale: false,
+                      description: '',
+                      article: '',
+                      stock: '0',
+                      isHidden: false,
+                      piecesPerBox: '24'
+                    });
+                    setEditingProduct(null);
+                    setIsProductModalOpen(true);
+                  }} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-[#115e5a] text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:bg-[#0d4c49] transition-colors cursor-pointer">
+                    <Plus size={14} /> নতুন পণ্য যোগ করুন
                   </button>
                   <button onClick={() => {
-                    const article = prompt('যে পণ্যের স্টক আপডেট করতে চান তার আর্টিকেল নম্বর বা নাম লিখুন:');
-                    if (article) {
-                      const prod = products.find(p => p.article === article || p.name.includes(article));
-                      if (prod) {
-                        const newStockStr = prompt(`"${prod.name}" এর বর্তমান স্টক: ${prod.stock || 0}\nনতুন স্টক পরিমাণ লিখুন:`, String(prod.stock || 0));
-                        if (newStockStr !== null) {
-                          const newStock = parseInt(newStockStr);
-                          if (!isNaN(newStock)) {
-                            updateProduct({ ...prod, stock: newStock });
-                            addNotification('স্টক আপডেট', `"${prod.name}" এর স্টক সফলভাবে আপডেট করা হয়েছে।`);
-                          }
-                        }
-                      } else {
-                        alert('পণ্যটি পাওয়া যায়নি!');
-                      }
-                    }
-                  }} className="flex items-center gap-1.5 bg-[#2e7d32] text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-emerald-700 transition-colors cursor-pointer">
+                    setSelectedStockProduct(products[0] || null);
+                    setAddBoxes('1');
+                    setAddPairs('0');
+                    setIsStockAdjustmentModalOpen(true);
+                  }} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-[#2e7d32] text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:bg-emerald-700 transition-colors cursor-pointer">
                     <SlidersHorizontal size={14} /> স্টক সমন্বয়
                   </button>
                 </div>
               </div>
 
               <div className="p-4 md:p-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
-                <div className="border border-slate-100 rounded-2xl p-4 md:p-5 bg-white">
-                  <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-                        <Building size={16} />
-                      </div>
-                      <h4 className="font-extrabold text-slate-800">ওয়ারহাউস স্টক ব্যালেন্স</h4>
+                {/* কুইক পণ্য ও মূল্য সংযোজন (Quick Product & Price Entry) */}
+                <div className="border border-slate-100 rounded-2xl p-4 md:p-5 bg-slate-50/50 mb-6 font-bold text-xs select-none shadow-inner">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <Plus size={16} />
                     </div>
-                    <span className="bg-slate-100 text-slate-500 px-2 py-1 rounded text-[10px] font-bold">লাইভ স্টক সংখ্যা</span>
+                    <div>
+                      <h4 className="font-extrabold text-slate-800 text-sm">আর্টিকেল অনুযায়ী নতুন পণ্য ও মূল্য যুক্ত করুন</h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5">নতুন পণ্য বা আর্টিকেল সরাসরি ইনভেন্টরিতে এন্ট্রি করুন এবং মূল্য নির্ধারণ করুন।</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                    <div>
+                      <label className="block text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider">আর্টিকেল নম্বর <span className="text-rose-500">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="যেমন: ART-102"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-[#2e7d32] text-xs font-bold text-slate-800"
+                        value={quickArticle}
+                        onChange={(e) => setQuickArticle(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider">পণ্যের নাম <span className="text-rose-500">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="যেমন: জেন্টস স্লিপার"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-[#2e7d32] text-xs font-bold text-slate-800"
+                        value={quickName}
+                        onChange={(e) => setQuickName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider">মূল্য (৳) <span className="text-rose-500">*</span></label>
+                      <input
+                        type="number"
+                        placeholder="যেমন: ৮৫০"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-[#2e7d32] text-xs font-bold text-slate-800"
+                        value={quickPrice}
+                        onChange={(e) => setQuickPrice(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider">প্রাথমিক স্টক (জোড়া)</label>
+                      <input
+                        type="number"
+                        placeholder="যেমন: ২৪"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:border-[#2e7d32] text-xs font-bold text-slate-800"
+                        value={quickStockBoxes}
+                        onChange={(e) => setQuickStockBoxes(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        onClick={handleQuickAddProduct}
+                        className="w-full bg-[#2e7d32] hover:bg-emerald-700 text-white py-2 px-4 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-[#2e7d32]/10 h-[38px]"
+                      >
+                        <Plus size={14} /> ইনভেন্টরিতে যুক্ত করুন
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-6 shadow-sm relative overflow-hidden mt-6">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+                  <div className="flex justify-between items-center mb-6 relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-[#2e7d32] flex items-center justify-center text-white shadow-md shadow-emerald-200">
+                        <Building size={18} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-slate-800 tracking-tight">ওয়ারহাউস স্টক ব্যালেন্স</h4>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5">লাইভ ইনভেন্টরি মনিটরিং</p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="overflow-x-auto">
+                  {/* Desktop Table view (Hidden on mobile) */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left border-collapse text-xs md:text-sm font-bold">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase text-[11px] select-none text-left">
-                          <th className="p-4 font-bold text-center">সিরিয়াল</th>
+                          <th className="p-4 font-bold text-center w-16">সিরিয়াল</th>
                           <th className="p-4 font-bold">আর্টিকেল</th>
                           <th className="p-4 font-bold">বক্স/জোড়া</th>
                           <th className="p-4 font-bold">মূল্য</th>
+                          <th className="p-4 font-bold text-right w-32">অ্যাকশন</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -2477,16 +3051,80 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                 <div className="text-[10px] text-slate-400 mt-0.5">{product.name}</div>
                               </td>
                               <td className="p-4">
-                                <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                                <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-xl text-xs font-black whitespace-nowrap">
                                   {stockText}
                                 </span>
                               </td>
                               <td className="p-4 font-black text-slate-900">৳{product.discountedPrice || product.originalPrice}</td>
+                              <td className="p-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    setSelectedStockProduct(product);
+                                    setAddBoxes('1');
+                                    setAddPairs('0');
+                                    setIsStockAdjustmentModalOpen(true);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-[#2e7d32] text-emerald-700 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm hover:shadow"
+                                >
+                                  <SlidersHorizontal size={12} /> সমন্বয়
+                                </button>
+                              </td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Grid view (No horizontal scrolling!) */}
+                  <div className="block md:hidden space-y-3">
+                    {products.map((product, index) => {
+                      const totalStock = product.stock || 0;
+                      const boxes = Math.floor(totalStock / 24);
+                      const pairs = totalStock % 24;
+                      let stockText = '';
+                      if (boxes > 0) stockText += `${boxes} বক্স `;
+                      if (pairs > 0) stockText += `${pairs} জোড়া`;
+                      if (totalStock === 0) stockText = 'স্টক নেই';
+
+                      return (
+                        <div key={product.id} className="p-4 border border-slate-100 rounded-2xl bg-slate-50/30 hover:bg-slate-50/60 transition-all flex flex-col gap-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">#{(index + 1).toString().padStart(2, '0')}</span>
+                                <span className="font-extrabold text-slate-900 text-xs tracking-wider">{product.article || `PRD-${product.id}`}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-medium truncate">{product.name}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider">মূল্য</span>
+                              <span className="font-black text-slate-900 text-xs">৳{product.discountedPrice || product.originalPrice}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex justify-between items-center pt-2.5 border-t border-slate-100/80">
+                            <div>
+                              <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-wider mb-1">স্টক ব্যালেন্স</span>
+                              <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded-xl text-xs font-black">
+                                {stockText}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedStockProduct(product);
+                                setAddBoxes('1');
+                                setAddPairs('0');
+                                setIsStockAdjustmentModalOpen(true);
+                              }}
+                              className="bg-[#2e7d32] hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-[#2e7d32]/10"
+                            >
+                              <SlidersHorizontal size={11} /> স্টক সমন্বয়
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -2497,24 +3135,24 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           {activeTab === 'receiving' && (
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col min-w-0">
               <div className="p-4 md:p-5 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap select-none">
-
                 <div>
                   <h3 className="font-extrabold text-base text-slate-800">পণ্য রিসিভিং (স্টক ম্যানেজমেন্ট)</h3>
                   <p className="text-xs text-slate-400 font-bold mt-0.5">নতুন স্টক রিসিভ করুন এবং ইনভেন্টরি আপডেট করুন</p>
                 </div>
-                <button
-                  onClick={() => setIsBoxReceiveModalOpen(true)}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-sm"
-                >
-                  <Plus size={14} /> বক্স রিসিভ
-                </button>
-                <button
-                  onClick={() => setIsCustomReceiveModalOpen(true)}
-                  className="bg-[#2e7d32] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm"
-                >
-                  <Plus size={14} /> কাস্টম রিসিভ
-                </button>
-
+                <div className="flex gap-2 items-center flex-wrap">
+                  <button
+                    onClick={() => setIsBoxReceiveModalOpen(true)}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Plus size={14} /> বক্স রিসিভ
+                  </button>
+                  <button
+                    onClick={() => setIsCustomReceiveModalOpen(true)}
+                    className="bg-[#2e7d32] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Plus size={14} /> কাস্টম রিসিভ
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 md:p-5">
@@ -2664,54 +3302,60 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   </p>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+                <div className="flex flex-col lg:flex-row flex-wrap items-stretch lg:items-center gap-2.5 w-full lg:w-auto">
                   <input 
                     type="date"
                     value={orderFilterDate}
                     onChange={(e) => setOrderFilterDate(e.target.value)}
-                    className="w-full sm:w-auto px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-[#115e5a] cursor-pointer"
+                    className="w-full lg:w-auto px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-[#115e5a] cursor-pointer"
                   />
                   {/* Search bar inside block */}
-                  <div className="relative w-full sm:w-auto">
+                  <div className="relative w-full lg:w-auto">
                     <input 
                       type="text" 
                       placeholder={lang === 'bn' ? "নাম বা মোবাইল নম্বর খুঁজুন..." : "Search name or phone..."} 
                       value={orderSearch}
                       onChange={(e) => setOrderSearch(e.target.value)}
-                      className="w-full sm:w-56 pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-xs placeholder-slate-400 focus:outline-[#115e5a] font-bold" 
+                      className="w-full lg:w-56 pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-xs placeholder-slate-400 focus:outline-[#115e5a] font-bold" 
                     />
                     <Search size={14} className="absolute left-2.5 top-3 text-slate-400" />
                   </div>
 
-                  <button 
-                    onClick={() => {
-                      setManualOrderCustomerName('');
-                      setManualOrderPhone('');
-                      setManualOrderAddress('');
-                      setManualOrderItems([]);
-                      setManualSelectedProductId('');
-                      setManualArticleSearch('');
-                      setManualSelectedQuantity(1);
-                      setIsManualOrderModalOpen(true);
-                    }}
-                    className="flex items-center justify-center gap-1.5 bg-amber-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-black hover:bg-amber-600 shadow-md transition-all cursor-pointer whitespace-nowrap active:scale-95"
-                  >
-                    <PlusCircle size={14} /> {lang === 'bn' ? 'ম্যানুয়াল অর্ডার তৈরি' : 'Create Manual Order'}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <button 
+                      onClick={() => {
+                        setManualOrderCustomerName('');
+                        setManualOrderPhone('');
+                        setManualOrderAddress('');
+                        setManualOrderItems([]);
+                        setManualSelectedProductId('');
+                            setManualSelectedPrice('');
+                        setManualArticleSearch('');
+                        setManualSelectedQuantity(1);
+                        setIsManualOrderModalOpen(true);
+                      }}
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-amber-500 text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-amber-600 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                    >
+                      <PlusCircle size={14} /> {lang === 'bn' ? 'ম্যানুয়াল অর্ডার তৈরি' : 'Create Manual Order'}
+                    </button>
 
-                  <button 
-                    onClick={handleDownloadPDF}
-                    className="flex items-center justify-center gap-1.5 bg-blue-600 text-white px-3.5 py-2.5 rounded-xl text-xs font-black hover:bg-blue-700 shadow-md transition-all cursor-pointer whitespace-nowrap active:scale-95"
-                  >
-                    <Download size={14} /> {lang === 'bn' ? 'ডাউনলোড (PDF/প্রিন্ট)' : 'Download (PDF)'}
-                  </button>
+                    <button 
+                      onClick={handleDownloadPDF}
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-blue-700 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                    >
+                      <Download size={14} /> {lang === 'bn' ? 'ডাউনলোড (PDF/প্রিন্ট)' : 'Download (PDF)'}
+                    </button>
 
-                  <button 
-                    onClick={handleDownloadCSV}
-                    className="flex items-center justify-center gap-1.5 bg-[#00693E] text-white px-3.5 py-2.5 rounded-xl text-xs font-black hover:bg-emerald-800 shadow-md transition-all cursor-pointer whitespace-nowrap active:scale-95"
-                  >
-                    <Download size={14} /> {lang === 'bn' ? 'ডাউনলোড (Excel/CSV)' : 'Download (CSV)'}
-                  </button>
+                    <button 
+                      onClick={() => {
+                        const printDate = orderFilterDate || new Date().toISOString().split('T')[0];
+                        window.open(`/print-sticker?date=${printDate}`, '_blank');
+                      }}
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-[#1b4332] text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-[#112d22] shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                    >
+                      <Printer size={14} /> {lang === 'bn' ? `কুরিয়ার স্টিকার প্রিন্ট (${orderFilterDate || 'আজ'})` : `Print Stickers (${orderFilterDate || 'Today'})`}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -4579,6 +5223,349 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     {/* TAB: STAFF PORTAL */}
           {activeTab === 'staff' && <StaffPortal />}
           
+          {/* TAB: SCAN STATUS */}
+          {activeTab === 'scan_status' && (
+            <div className="max-w-3xl bg-white border border-slate-100 shadow-sm rounded-2xl p-6 space-y-6">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-800">স্ক্যান ও স্ট্যাটাস আপডেট</h3>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">বারকোড স্ক্যান করে অর্ডার বা কুরিয়ার স্ট্যাটাস আপডেট করুন</p>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">টার্গেট স্ট্যাটাস নির্ধারণ করুন</label>
+                  <select
+                    value={scanStatusTarget}
+                    onChange={(e) => setScanStatusTarget(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-700 outline-none focus:border-[#2e7d32]"
+                  >
+                    <option value="Pending">Pending (পেন্ডিং)</option>
+                    <option value="Processing">Processing (প্রসেসিং)</option>
+                    <option value="Shipped">Shipped (কুরিয়ারে)</option>
+                    <option value="Delivered">Delivered (ডেলিভার্ড)</option>
+                    <option value="Cancelled">Cancelled (ক্যান্সেল)</option>
+                    <option value="Returned">Returned (রিটার্ন)</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">বারকোড স্ক্যান করুন (অর্ডার আইডি / ট্র্যাকিং)</label>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!scanStatusInput.trim()) return;
+                    
+                    const scannedId = scanStatusInput.trim();
+                    let updated = false;
+
+                    // 1. Check Orders
+                    const orderToUpdate = orders.find(o => o.id === scannedId);
+                    if (orderToUpdate) {
+                      updateOrderStatus(orderToUpdate.id, scanStatusTarget as any);
+                      addNotification('স্ট্যাটাস আপডেট', `অর্ডার ${orderToUpdate.id} এর স্ট্যাটাস '${scanStatusTarget}' করা হয়েছে।`);
+                      updated = true;
+                    }
+
+                    // 2. Check Courier (if no order matched, try courier consignment)
+                    if (!updated) {
+                       const courierMatch = courierHistory.find(c => String(c.consignment_id) === scannedId || String(c.tracking_code) === scannedId);
+                       if (courierMatch) {
+                          updateDoc(doc(courierHistoryCollection, String(courierMatch.consignment_id)), {
+                             status: scanStatusTarget.toLowerCase() === 'delivered' ? 'delivered' : 
+                                     (scanStatusTarget.toLowerCase() === 'cancelled' || scanStatusTarget.toLowerCase() === 'returned') ? 'cancelled' : 'in_transit'
+                          }).then(() => {
+                             addNotification('কুরিয়ার আপডেট', `কুরিয়ার বুকিং ${scannedId} আপডেট করা হয়েছে।`);
+                          }).catch(err => alert(err.message));
+                          updated = true;
+                       }
+                    }
+
+                    if (!updated) {
+                      alert('এই আইডি দিয়ে কোনো অর্ডার বা কুরিয়ার বুকিং পাওয়া যায়নি!');
+                    }
+
+                    setScanStatusInput('');
+                  }}>
+                    <input
+                      type="text"
+                      autoFocus
+                      value={scanStatusInput}
+                      onChange={(e) => setScanStatusInput(e.target.value)}
+                      placeholder="এখানে স্ক্যান করুন..."
+                      className="w-full px-4 py-4 rounded-xl border-2 border-indigo-200 bg-white font-mono text-lg font-black text-slate-800 outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/10 transition-all"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-2 font-bold flex items-center gap-1"><ScanBarcode size={12}/> ইনপুট ফিল্ডে কার্সর রেখে স্ক্যানার দিয়ে স্ক্যান করুন</p>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: SCAN ARTICLE */}
+          {activeTab === 'scan_article' && (
+            <div className="max-w-3xl bg-white border border-slate-100 shadow-sm rounded-2xl p-6 space-y-6">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-800">স্ক্যান ও আর্টিকেল এন্ট্রি</h3>
+                <p className="text-xs text-slate-400 font-bold mt-0.5">আর্টিকেল স্ক্যান করে দ্রুত স্টক যোগ করুন</p>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2">আর্টিকেল বারকোড স্ক্যান করুন</label>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!scanArticleInput.trim()) return;
+                    
+                    const scannedId = scanArticleInput.trim().toLowerCase();
+                    const productMatch = products.find(p => (p.article || '').toLowerCase() === scannedId || p.id.toLowerCase() === scannedId);
+                    
+                    if (productMatch) {
+                      setScanArticleProduct(productMatch);
+                      addNotification('পণ্য পাওয়া গেছে', `${productMatch.name} (আর্টিকেল: ${productMatch.article || 'N/A'}) পাওয়া গেছে।`);
+                    } else {
+                      alert('এই আর্টিকেল বা আইডি দিয়ে কোনো পণ্য পাওয়া যায়নি!');
+                      setScanArticleProduct(null);
+                    }
+                    setScanArticleInput('');
+                  }}>
+                    <input
+                      type="text"
+                      autoFocus
+                      value={scanArticleInput}
+                      onChange={(e) => setScanArticleInput(e.target.value)}
+                      placeholder="আর্টিকেল স্ক্যান করুন..."
+                      className="w-full px-4 py-4 rounded-xl border-2 border-[#2e7d32]/30 bg-white font-mono text-lg font-black text-slate-800 outline-none focus:border-[#2e7d32] focus:ring-4 focus:ring-[#2e7d32]/10 transition-all"
+                    />
+                  </form>
+                </div>
+
+                {scanArticleProduct && (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                    <div className="flex gap-4 items-center border-b border-slate-200 pb-4">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-200">
+                         {scanArticleProduct.image ? <img src={scanArticleProduct.image} className="w-full h-full object-cover" alt="Product" /> : <div className="w-full h-full flex items-center justify-center text-slate-400"><Package size={24} /></div>}
+                      </div>
+                      <div>
+                        <h4 className="font-black text-slate-800 text-lg">{scanArticleProduct.name}</h4>
+                        <p className="text-xs font-bold text-slate-500">আর্টিকেল: {scanArticleProduct.article || 'N/A'} | বর্তমান স্টক: {scanArticleProduct.stock || 0} পিস</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                       <div>
+                         <label className="block text-xs font-bold text-slate-500 mb-1">বক্স যোগ করুন</label>
+                         <input type="number" value={scanArticleBoxes} onChange={e => setScanArticleBoxes(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 font-bold outline-none focus:border-[#2e7d32]" />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-bold text-slate-500 mb-1">খুচরা জোড়া যোগ করুন</label>
+                         <input type="number" value={scanArticlePairs} onChange={e => setScanArticlePairs(e.target.value)} className="w-full p-2 rounded-lg border border-slate-300 font-bold outline-none focus:border-[#2e7d32]" />
+                       </div>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const boxes = parseInt(scanArticleBoxes) || 0;
+                        const pairs = parseInt(scanArticlePairs) || 0;
+                        const addAmount = (boxes * 24) + pairs;
+                        if (addAmount <= 0) return;
+                        updateProduct({ ...scanArticleProduct, stock: (scanArticleProduct.stock || 0) + addAmount });
+                        addNotification('স্টক আপডেট', `${scanArticleProduct.name}-এ ${addAmount} পিস স্টক যোগ করা হয়েছে।`);
+                        setScanArticleProduct(null);
+                        setScanArticleBoxes('0');
+                        setScanArticlePairs('0');
+                      }}
+                      className="w-full bg-[#2e7d32] hover:bg-[#1b4332] text-white py-3 rounded-xl font-black text-sm shadow-lg shadow-[#2e7d32]/20 active:scale-95 transition-all"
+                    >
+                      স্টক আপডেট করুন
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: SCAN ORDER */}
+          {activeTab === 'scan_order' && (
+            <div className="max-w-5xl bg-white border border-slate-100 shadow-xl shadow-slate-200/40 rounded-3xl p-6 sm:p-8 space-y-8">
+              <div>
+                <h3 className="font-extrabold text-xl text-slate-800">স্ক্যান করে ম্যানুয়াল অর্ডার</h3>
+                <p className="text-sm text-slate-500 font-bold mt-1">পণ্য স্ক্যান করে দ্রুত কাস্টমার অর্ডার তৈরি করুন</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+                <div className="md:col-span-7 space-y-6">
+                  <div>
+                    <label className="block text-xs font-extrabold text-slate-500 mb-2 uppercase tracking-wider">বারকোড / আর্টিকেল স্ক্যান করুন</label>
+                    <form onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!scanOrderInput.trim()) return;
+                      
+                      const scannedId = scanOrderInput.trim().toLowerCase();
+                      const productMatch = products.find(p => (p.article || '').toLowerCase() === scannedId || p.id.toLowerCase() === scannedId);
+                      
+                      if (productMatch) {
+                        const priceToUse = Math.round((productMatch.discountedPrice || productMatch.originalPrice) / 24);
+                        const existing = manualOrderItems.find(i => i.id === productMatch.id);
+                        if (existing) {
+                          setManualOrderItems(prev => prev.map(item => item.id === productMatch.id ? { ...item, quantity: item.quantity + 1 } : item));
+                        } else {
+                          setManualOrderItems(prev => [...prev, { id: productMatch.id, name: productMatch.name, quantity: 1, price: priceToUse }]);
+                        }
+                        triggerSound();
+                        addNotification('পণ্য যোগ', `${productMatch.name} অর্ডারে যোগ করা হয়েছে।`);
+                      } else {
+                        alert('পণ্য পাওয়া যায়নি!');
+                      }
+                      setScanOrderInput('');
+                    }}>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                          <ScanBarcode className="text-[#2e7d32]/50" size={24} />
+                        </div>
+                        <input
+                          type="text"
+                          autoFocus
+                          value={scanOrderInput}
+                          onChange={(e) => setScanOrderInput(e.target.value)}
+                          placeholder="পণ্য স্ক্যান করুন..."
+                          className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-slate-200 bg-slate-50 font-mono text-lg font-black text-slate-800 outline-none focus:border-[#2e7d32] focus:bg-white focus:ring-4 focus:ring-[#2e7d32]/10 transition-all shadow-inner"
+                        />
+                      </div>
+                    </form>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm min-h-[350px] flex flex-col">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                      <h4 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                        <ShoppingCart size={16} className="text-[#2e7d32]" />
+                        অর্ডার আইটেমস
+                      </h4>
+                      <span className="bg-[#2e7d32]/10 text-[#2e7d32] px-2.5 py-0.5 rounded-full text-xs font-black">{manualOrderItems.length}</span>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                      {manualOrderItems.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-300 space-y-3 py-10">
+                          <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100">
+                            <ScanLine size={32} />
+                          </div>
+                          <p className="text-sm font-bold">কোনো পণ্য যোগ করা হয়নি</p>
+                        </div>
+                      ) : (
+                        manualOrderItems.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center bg-slate-50 hover:bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm transition-colors group">
+                            <div className="flex-1">
+                              <p className="text-sm font-bold text-slate-800 leading-tight">{item.name}</p>
+                              <p className="text-[11px] text-slate-500 font-extrabold mt-1">{item.quantity} x ৳{item.price.toLocaleString('bn-BD')}</p>
+                            </div>
+                            <div className="flex items-center gap-4 pl-3 border-l border-slate-200">
+                               <p className="text-sm font-black text-[#2e7d32]">৳{(item.quantity * item.price).toLocaleString('bn-BD')}</p>
+                               <button onClick={() => setManualOrderItems(prev => prev.filter(i => i.id !== item.id))} className="p-1.5 text-rose-400 hover:text-white hover:bg-rose-500 rounded-lg transition-colors"><X size={16}/></button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-5 space-y-5 bg-gradient-to-br from-slate-50 to-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-[#2e7d32]/5 rounded-bl-full pointer-events-none" />
+                   
+                   <h4 className="font-extrabold text-slate-800 text-sm flex items-center gap-2 border-b border-slate-100 pb-3">
+                     <User size={16} className="text-[#2e7d32]" />
+                     কাস্টমার ও বিলিং
+                   </h4>
+                   
+                   <div className="space-y-4 relative z-10">
+                     <div>
+                       <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">কাস্টমারের নাম</label>
+                       <input type="text" value={manualOrderCustomerName} onChange={e => setManualOrderCustomerName(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm outline-none focus:border-[#2e7d32] focus:ring-4 focus:ring-[#2e7d32]/10 transition-all shadow-sm" placeholder="কাস্টমারের নাম লিখুন" />
+                     </div>
+                     
+                     <div>
+                       <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">মোবাইল নম্বর</label>
+                       <input type="text" value={manualOrderPhone} onChange={e => {
+                          const newPhone = e.target.value;
+                          setManualOrderPhone(newPhone);
+                          if (newPhone.length >= 11) {
+                            const prevOrder = orders.find(o => o.phone === newPhone);
+                            if (prevOrder) {
+                              if (!manualOrderCustomerName) setManualOrderCustomerName(prevOrder.customerName);
+                              if (!manualOrderAddress) setManualOrderAddress(prevOrder.address);
+                            }
+                          }
+                       }} className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm outline-none focus:border-[#2e7d32] focus:ring-4 focus:ring-[#2e7d32]/10 transition-all shadow-sm" placeholder="01XXX..." />
+                     </div>
+
+                     <div>
+                       <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">ঠিকানা</label>
+                       <textarea value={manualOrderAddress} onChange={e => setManualOrderAddress(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm outline-none focus:border-[#2e7d32] focus:ring-4 focus:ring-[#2e7d32]/10 transition-all resize-none h-20 shadow-sm" placeholder="ডেলিভারি ঠিকানা লিখুন" />
+                     </div>
+
+                     <div className="flex gap-2 p-1.5 bg-slate-100 rounded-xl shadow-inner">
+                        <button type="button" onClick={() => setManualOrderIsDue(false)} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${!manualOrderIsDue ? 'bg-white shadow-md text-[#2e7d32]' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>ক্যাশ অন ডেলিভারি</button>
+                        <button type="button" onClick={() => setManualOrderIsDue(true)} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${manualOrderIsDue ? 'bg-white shadow-md text-[#2e7d32]' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>বকেয়া / পেইড</button>
+                     </div>
+                     
+                     {!manualOrderIsDue && (
+                       <div>
+                         <label className="block text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-1.5">ডেলিভারি চার্জ</label>
+                         <input type="number" value={manualDeliveryCharge} onChange={e => setManualDeliveryCharge(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm outline-none focus:border-[#2e7d32] focus:ring-4 focus:ring-[#2e7d32]/10 transition-all shadow-sm" placeholder="যেমন: ১২০" />
+                       </div>
+                     )}
+
+                     <div className="pt-4 mt-2">
+                       <div className="bg-[#2e7d32]/5 p-4 rounded-xl border border-[#2e7d32]/10">
+                         <div className="flex justify-between text-xs font-bold text-slate-600 mb-2">
+                           <span>সাবটোটাল</span>
+                           <span>৳{manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0).toLocaleString('bn-BD')}</span>
+                         </div>
+                         {!manualOrderIsDue && (
+                           <div className="flex justify-between text-xs font-bold text-slate-600 mb-3">
+                             <span>ডেলিভারি চার্জ</span>
+                             <span>৳{(Number(manualDeliveryCharge) || 0).toLocaleString('bn-BD')}</span>
+                           </div>
+                         )}
+                         <div className="flex justify-between text-lg font-black text-slate-900 pt-3 border-t border-[#2e7d32]/20">
+                           <span>মোট বিল</span>
+                           <span className="text-[#2e7d32]">৳{(manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) + (manualOrderIsDue ? 0 : (Number(manualDeliveryCharge) || 0))).toLocaleString('bn-BD')}</span>
+                         </div>
+                       </div>
+                     </div>
+
+                     <button 
+                       disabled={manualOrderItems.length === 0 || !manualOrderCustomerName || !manualOrderPhone || !manualOrderAddress}
+                       onClick={() => {
+                          const subtotal = manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                          const total = subtotal + (manualOrderIsDue ? 0 : (Number(manualDeliveryCharge) || 0));
+                          
+                          addSimulatedOrder({
+                            id: `ord-${Math.floor(100 + Math.random() * 900)}`,
+                            customerName: manualOrderCustomerName,
+                            phone: manualOrderPhone,
+                            address: manualOrderAddress,
+                            items: manualOrderItems,
+                            total,
+                            date: new Date().toISOString(),
+                            status: 'Pending' as const
+                          });
+                          
+                          addNotification('ম্যানুয়াল অর্ডার', 'অর্ডারটি সফলভাবে ডাটাবেসে যোগ করা হয়েছে।');
+                          setManualOrderItems([]);
+                          setManualOrderCustomerName('');
+                          setManualOrderPhone('');
+                          setManualOrderAddress('');
+                       }}
+                       className="w-full bg-gradient-to-r from-[#2e7d32] to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white py-4 rounded-xl font-black text-sm shadow-lg shadow-[#2e7d32]/30 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2"
+                     >
+                       <ShoppingCart size={18} strokeWidth={2.5} />
+                       অর্ডার নিশ্চিত করুন
+                     </button>
+                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TAB 5: SYSTEM SETTINGS */}
           {activeTab === 'settings' && (
             <div className="max-w-xl bg-white border border-slate-100 shadow-sm rounded-2xl p-6 space-y-6">
@@ -4742,17 +5729,17 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       {/* 4. MODAL DETAILED IMPLEMENTATION */}
       
       {/* Manual Order Creation Modal */}
-      {isManualOrderModalOpen && (
+            {isManualOrderModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsManualOrderModalOpen(false)}></div>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setIsManualOrderModalOpen(false); setEditingOrderId(null); }}></div>
           
           <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 select-none">
               <h3 className="font-extrabold text-sm md:text-base text-slate-800 flex items-center gap-2">
                 <ShoppingBag size={18} className="text-amber-500" />
-                <span>ম্যানুয়াল ক্যাশ-অন-ডেলিভারি অর্ডার তৈরি</span>
+                <span>{editingOrderId ? 'ম্যানুয়াল ক্যাশ-অন-ডেলিভারি অর্ডার এডিট' : 'ম্যানুয়াল ক্যাশ-অন-ডেলিভারি অর্ডার তৈরি'}</span>
               </h3>
-              <button onClick={() => setIsManualOrderModalOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+              <button onClick={() => { setIsManualOrderModalOpen(false); setEditingOrderId(null); }} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg">
                 <X size={20} />
               </button>
             </div>
@@ -5009,7 +5996,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       </div>
                       <div className="flex justify-between text-slate-800 font-black text-xs pt-2 border-t border-slate-200">
                         <span>সর্বমোট বিল:</span>
-                        <span>৳{(manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) + manualDeliveryCharge + manualConditionCharge).toLocaleString('bn-BD')}</span>
+                        <span>৳{(manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) + (Number(manualDeliveryCharge) || 0) + (Number(manualConditionCharge) || 0)).toLocaleString('bn-BD')}</span>
                       </div>
                     </div>
                   </div>
@@ -5020,7 +6007,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             <div className="p-5 border-t border-slate-100 flex justify-end gap-2 shrink-0 bg-slate-50 select-none">
               <button 
                 type="button" 
-                onClick={() => setIsManualOrderModalOpen(false)}
+                onClick={() => { setIsManualOrderModalOpen(false); setEditingOrderId(null); }}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold"
               >
                 বাতিল করুন
@@ -5042,7 +6029,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   }
 
                   const subtotal = manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                  const grandTotal = subtotal + manualDeliveryCharge + manualConditionCharge;
+                  const grandTotal = subtotal + (Number(manualDeliveryCharge) || 0) + (Number(manualConditionCharge) || 0);
                   
                   // Deduct from stock
                   manualOrderItems.forEach(item => {
@@ -5163,6 +6150,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       setManualOrderPhone('');
                       setManualOrderAddress('');
                       setManualOrderItems([]);
+                      setEditingOrderId(null);
                     }}
                     className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-sm font-extrabold transition-colors cursor-pointer mt-2"
                   >
@@ -5176,7 +6164,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
       
       
-      {/* Courier Booking Modal */}
+{/* Courier Booking Modal */}
       {isCourierBookingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setIsCourierBookingOpen(false); setAutoBookingResult(null); }}></div>
@@ -5296,6 +6284,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         customer_name: courierBookingData.recipient_name,
                         customer_phone: courierBookingData.recipient_phone,
                         amount: courierBookingData.cod_amount,
+                        recipient_address: courierBookingData.recipient_address,
                         status: 'pending',
                         created_at: new Date().toISOString()
                       };
@@ -5324,7 +6313,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <Check size={16} /> কুরিয়ারে বুক করুন
               </button>
             </div>
-            </>
+              </>
             ) : (
                 <div className="text-center py-6 space-y-4">
                   <div className="w-16 h-16 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full flex items-center justify-center mx-auto">
@@ -5707,6 +6696,18 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </div>
               </div>
 
+              {courierHistory.some(c => c.invoice === selectedOrder.id) && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-2.5 font-bold text-xs select-none">
+                  <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="font-extrabold text-[#1b4332]">কুরিয়ার বুকিং সম্পূর্ণ (Booking Completed)</p>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      ট্র্যাকিং আইডি: <span className="font-mono text-slate-900 select-all font-black">{courierHistory.find(c => c.invoice === selectedOrder.id)?.tracking_code || courierHistory.find(c => c.invoice === selectedOrder.id)?.consignment_id}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Client Info Grid */}
               <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 space-y-3 font-semibold text-xs text-slate-600 leading-relaxed">
                 <div>
@@ -5778,6 +6779,30 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     </button>
                   )
                 )}
+                
+                {selectedOrder.status === 'Pending' && (
+                  <button 
+                    onClick={() => {
+                      setEditingOrderId(selectedOrder.id);
+                      setManualOrderCustomerName(selectedOrder.customerName);
+                      setManualOrderPhone(selectedOrder.phone);
+                      setManualOrderAddress(selectedOrder.address || '');
+                      setManualOrderItems(selectedOrder.items);
+                      setManualDeliveryCharge(selectedOrder.deliveryCharge || 0);
+                      setManualConditionCharge(selectedOrder.conditionCharge || 0);
+                      
+                      // Check if there is an associated due
+                      setManualOrderIsDue(selectedOrder.total !== (selectedOrder.deliveryCharge + selectedOrder.conditionCharge) && false); // We might need a better way, but for now we default to COD (false) or derive it
+                      
+                      setIsManualOrderModalOpen(true);
+                      setSelectedOrder(null);
+                    }}
+                    className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl text-xs font-extrabold flex items-center gap-1 transition-all"
+                  >
+                    <Edit size={13} /> এডিট
+                  </button>
+                )}
+
                 <button 
                   onClick={() => setSelectedOrder(null)}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold"
@@ -5819,38 +6844,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] text-slate-500 font-black uppercase tracking-wider mb-2">কুরিয়ার সার্ভিস নির্বাচন করুন</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button 
-                        type="button" 
-                        onClick={() => setCourierService('pathao')}
-                        className={`p-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-black uppercase ${
-                          courierService === 'pathao' ? 'bg-[#ff2200]/10 border-[#ff2200] text-[#ff2200]' : 'border-slate-100 text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="text-[10px]">Pathao</span>
-                        <span className="text-[9px] text-slate-400 font-medium">ইনস্ট্যান্ট বুক</span>
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => setCourierService('redx')}
-                        className={`p-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-black uppercase ${
-                          courierService === 'redx' ? 'bg-[#da251d]/10 border-[#da251d] text-[#da251d]' : 'border-slate-100 text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="text-[10px]">RedX</span>
-                        <span className="text-[9px] text-slate-400 font-medium">হোম ডেলিভারি</span>
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => setCourierService('steadfast')}
-                        className={`p-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-black uppercase ${
-                          courierService === 'steadfast' ? 'bg-indigo-50 border-indigo-500 text-indigo-600' : 'border-slate-100 text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="text-[10px]">Steadfast</span>
-                        <span className="text-[9px] text-slate-400 font-medium">দ্রুত পেমেন্ট</span>
-                      </button>
+                    <label className="block text-[11px] text-slate-500 font-black uppercase tracking-wider mb-2">কুরিয়ার সার্ভিস</label>
+                    <div className="bg-indigo-50 border border-indigo-200 text-indigo-700 px-4 py-3 rounded-2xl flex items-center justify-between font-bold text-xs select-none">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full animate-pulse"></span>
+                        <span>Steadfast Courier API (সক্রিয়)</span>
+                      </div>
+                      <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-lg text-[9px] uppercase font-black tracking-wider">Default</span>
                     </div>
                   </div>
 
@@ -5866,23 +6866,49 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   </div>
 
                   <div>
+                    <label className="block text-[11px] text-slate-500 font-black uppercase tracking-wider mb-2">ডেলিভারি ধরন (Delivery Type)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button 
+                        type="button" 
+                        onClick={() => setDeliveryType('home')}
+                        className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all text-xs font-bold ${
+                          deliveryType === 'home' ? 'bg-[#1b4332]/10 border-[#1b4332] text-[#1b4332]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        হোম ডেলিভারি
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setDeliveryType('point')}
+                        className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all text-xs font-bold ${
+                          deliveryType === 'point' ? 'bg-amber-50 border-amber-500 text-amber-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        পয়েন্ট ডেলিভারি
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
                     <label className="block text-[11px] text-slate-500 font-black uppercase tracking-wider mb-1.5">পণ্য ক্যাটাগরি</label>
-                    <select className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold focus:outline-emerald-600 bg-white">
-                      <option>খাদ্য সামগ্রী (নন-প্যারিশেবল)</option>
-                      <option>তাজা খাবার ও ফলমূল</option>
-                      <option>তরল ও দুগ্ধজাত পণ্য</option>
+                    <select 
+                      value={bookingCategory}
+                      onChange={(e) => setBookingCategory(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold focus:outline-emerald-600 bg-white"
+                    >
+                      <option value="ব্যাগ">ব্যাগ (Bags)</option>
+                      <option value="জুতো ও স্যান্ডেল">জুতো ও স্যান্ডেল (Shoes & Sandals)</option>
+                      <option value="ক্রোকারি">ক্রোকারি ও তৈজসপত্র (Crockery)</option>
+                      <option value="কসমেটিকস">কসমেটিকস ও সাজসজ্জা (Cosmetics & Decor)</option>
+                      <option value="অন্যান্য">অন্যান্য পণ্য (Other Products)</option>
                     </select>
                   </div>
 
                   <div className="pt-2">
                     <button 
                       onClick={async () => {
-                        if (courierService !== 'steadfast') {
-                           alert('শুধুমাত্র Steadfast কুরিয়ার API চালু আছে।');
-                           return;
-                        }
                         try {
-                          const response = await fetch('https://portal.packzy.com/api/v1/create_order', {
+                           const response = await fetch('https://portal.packzy.com/api/v1/create_order', {
                             method: 'POST',
                             headers: {
                               'Api-Key': '2p80tiyscewtjoczqbqy9fcugkhpocvz',
@@ -5895,7 +6921,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               recipient_phone: bookingOrder.phone,
                               recipient_address: bookingOrder.address,
                               cod_amount: bookingOrder.total,
-                              note: `Weight: ${weightKg}kg`
+                              note: `Weight: ${weightKg}kg | Category: ${bookingCategory} | Delivery: ${deliveryType === 'home' ? 'Home Delivery' : 'Point Delivery'}`
                             })
                           });
                           const data = await response.json();
@@ -5908,6 +6934,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               customer_name: bookingOrder.customerName,
                               customer_phone: bookingOrder.phone,
                               amount: bookingOrder.total,
+                              recipient_address: bookingOrder.address,
+                              delivery_type: deliveryType,
                               invoice: bookingOrder.id,
                               created_at: new Date().toISOString()
                             };

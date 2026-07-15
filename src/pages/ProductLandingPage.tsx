@@ -122,7 +122,7 @@ export default function ProductLandingPage({ productId, onBack }: ProductLanding
     return num.toString().replace(/\d/g, (digit) => banglaDigits[parseInt(digit)]);
   };
 
-  const handleCheckoutSubmit = (e: React.FormEvent) => {
+  const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
@@ -144,7 +144,7 @@ export default function ProductLandingPage({ productId, onBack }: ProductLanding
     }
 
     // Submit direct order using context
-    const trackingId = placeDirectOrder(customerName.trim(), phone.trim(), address.trim(), product, quantity);
+    const trackingId = await placeDirectOrder(customerName.trim(), phone.trim(), address.trim(), product, quantity);
 
     setPlacedOrderDetails({
       customerName: customerName.trim(),

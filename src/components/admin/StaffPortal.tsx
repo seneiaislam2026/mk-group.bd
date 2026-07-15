@@ -8,6 +8,7 @@ interface Staff {
   name: string;
   mobile: string;
   designation: string;
+  employeeId?: string;
   photo: string;
   joinDate: string;
 }
@@ -24,7 +25,7 @@ export default function StaffPortal() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newStaff, setNewStaff] = useState({ name: '', mobile: '', designation: '', photo: '' });
+  const [newStaff, setNewStaff] = useState({ name: '', mobile: '', designation: '', photo: '', employeeId: '' });
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
@@ -154,6 +155,7 @@ export default function StaffPortal() {
 
     const staff: Staff = {
       id: Math.random().toString(36).substr(2, 9),
+      employeeId: newStaff.employeeId,
       name: newStaff.name,
       mobile: newStaff.mobile,
       designation: newStaff.designation,
@@ -163,7 +165,7 @@ export default function StaffPortal() {
 
     try {
       await setDoc(doc(staffCollection, staff.id), staff);
-      setNewStaff({ name: '', mobile: '', designation: '', photo: '' });
+      setNewStaff({ name: '', mobile: '', designation: '', photo: '', employeeId: '' });
       setShowAddModal(false);
     } catch (err) {
       console.error('Error adding staff:', err);
@@ -349,7 +351,7 @@ export default function StaffPortal() {
                   <img src={selectedStaff.photo} alt={selectedStaff.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="text-center md:text-left flex-1">
-                  <h2 className="text-2xl font-black text-slate-800">{selectedStaff.name}</h2>
+                  <h2 className="text-2xl font-black text-slate-800">{selectedStaff.name} {selectedStaff.employeeId && <span className="text-sm bg-slate-200 text-slate-600 px-2 py-0.5 rounded ml-2">#{selectedStaff.employeeId}</span>}</h2>
                   <p className="text-sm font-bold text-[#2e7d32] bg-emerald-50 px-3 py-1 rounded-full inline-block mt-2 mb-2">{selectedStaff.designation}</p>
                   <div className="text-sm text-slate-600 font-medium">মোবাইল: <span className="font-bold text-slate-800">{selectedStaff.mobile}</span></div>
                 </div>
@@ -464,6 +466,17 @@ export default function StaffPortal() {
                 </button>
               </div>
 
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">স্টাফ আইডি</label>
+                <input 
+                  type="text" 
+                  placeholder="যেমন: ID-001"
+                  value={newStaff.employeeId}
+                  onChange={e => setNewStaff({...newStaff, employeeId: e.target.value})}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#2e7d32]"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1.5">নাম <span className="text-rose-500">*</span></label>
                 <input 

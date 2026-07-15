@@ -418,15 +418,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Order submission
 
-  const placeOrder = async (customerName: string, phone: string, address: string) => {
+  const getNextSequentialId = (): string => {
     const maxId = orders.reduce((max, o) => {
-      const match = o.id.match(/^Ord-(\d+)$/i);
-      if (match) return Math.max(max, parseInt(match[1], 10));
+      const matchPure = o.id.match(/^(\d+)$/);
+      if (matchPure) return Math.max(max, parseInt(matchPure[1], 10));
+      const matchOrd = o.id.match(/^Ord-(\d+)$/i);
+      if (matchOrd) return Math.max(max, parseInt(matchOrd[1], 10));
       const matchLegacy = o.id.match(/^man-(\d+)$/i);
       if (matchLegacy) return Math.max(max, parseInt(matchLegacy[1], 10));
+      const matchGeneric = o.id.match(/\d+/);
+      if (matchGeneric) return Math.max(max, parseInt(matchGeneric[0], 10));
       return max;
     }, 0);
-    const trackingId = `Ord-${(maxId + 1).toString().padStart(3, '0')}`;
+    return (maxId + 1).toString().padStart(3, '0');
+  };
+
+  const placeOrder = async (customerName: string, phone: string, address: string) => {
+    const trackingId = getNextSequentialId();
     const newOrder: Order = {
       id: trackingId,
       customerName,
@@ -455,7 +463,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
 
   const placeDirectOrder = async (customerName: string, phone: string, address: string, product: Product, quantity: number) => {
-    const trackingId = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
+    const trackingId = getNextSequentialId();
     const newOrder: Order = {
       id: trackingId,
       customerName,
@@ -485,6 +493,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const updateOrderStatus = async (id: string, status: 'Pending' | 'Confirmed' | 'Shipped' | 'Completed' | 'Cancelled') => {
     try {
+      const order = orders.find(o => o.id === id);
+      if (order && order.status !== 'Cancelled' && status === 'Cancelled') {
+        // Restore stock
+        for (const item of order.items) {
+          const product = products.find(p => p.id === item.id);
+          if (product) {
+            await updateDoc(doc(productsCollection, product.id), { stock: (product.stock || 0) + item.quantity });
+          }
+        }
+      } else if (order && order.status === 'Cancelled' && status !== 'Cancelled') {
+        // Deduct stock again if un-cancelled
+        for (const item of order.items) {
+          const product = products.find(p => p.id === item.id);
+          if (product) {
+            await updateDoc(doc(productsCollection, product.id), { stock: Math.max(0, (product.stock || 0) - item.quantity) });
+          }
+        }
+      }
       await updateDoc(doc(ordersCollection, id), { status });
     } catch (e) {
       console.error(e);
@@ -494,6 +520,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const deleteOrder = async (id: string) => {
     try {
+      // First, restore stock
+      const order = orders.find(o => o.id === id);
+      if (order && order.status !== 'Cancelled') {
+        for (const item of order.items) {
+          const product = products.find(p => p.id === item.id);
+          if (product) {
+            await updateDoc(doc(productsCollection, product.id), { stock: (product.stock || 0) + item.quantity });
+          }
+        }
+      }
       await deleteDoc(doc(ordersCollection, id));
     } catch (e) {
       console.error(e);

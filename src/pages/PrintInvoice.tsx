@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import Barcode from 'react-barcode';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export default function PrintInvoice() {
@@ -48,6 +48,25 @@ export default function PrintInvoice() {
               date: foundOrder.date,
               status: foundOrder.status
             }));
+          }
+
+          // Query courierHistory where invoice == id
+          try {
+            const courierRef = collection(db, 'courierHistory');
+            const q = query(courierRef, where('invoice', '==', id));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              const bookingDoc = querySnapshot.docs[0].data();
+              const foundConsignmentId = bookingDoc.tracking_code || bookingDoc.consignment_id;
+              if (foundConsignmentId) {
+                setInvoiceData((prev: any) => ({
+                  ...prev,
+                  consignmentId: foundConsignmentId
+                }));
+              }
+            }
+          } catch (err) {
+            console.error("Error querying courier history:", err);
           }
         } catch (error) {
           console.error("Error loading invoice directly from DB:", error);
@@ -139,6 +158,12 @@ export default function PrintInvoice() {
                   <td className="border border-black px-2 py-1 bg-gray-50">Invoice No:</td>
                   <td className="border border-black px-2 py-1">{invoiceData.consignmentId || invoiceData.id || ''}</td>
                 </tr>
+                {invoiceData.consignmentId && (
+                  <tr>
+                    <td className="border border-black px-2 py-1 bg-emerald-50 text-emerald-800">Booking No:</td>
+                    <td className="border border-black px-2 py-1 text-emerald-800 font-extrabold">{invoiceData.consignmentId}</td>
+                  </tr>
+                )}
                 <tr>
                   <td className="border border-black px-2 py-1 bg-gray-50">ID:</td>
                   <td className="border border-black px-2 py-1">{invoiceData.id || ''}</td>

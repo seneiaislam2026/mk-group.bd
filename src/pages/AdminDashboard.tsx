@@ -181,7 +181,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [scanArticlePairs, setScanArticlePairs] = useState('0');
   const [scanOrderInput, setScanOrderInput] = useState('');
   const [manualSelectedProductId, setManualSelectedProductId] = useState('');
-  const [manualSelectedQuantity, setManualSelectedQuantity] = useState<number | ''>('');
+  const [manualSelectedQuantity, setManualSelectedQuantity] = useState<number | ''>(6);
   const [manualSelectedPrice, setManualSelectedPrice] = useState<number | ''>('');
   const [manualArticleSearch, setManualArticleSearch] = useState('');
   const [manualDeliveryCharge, setManualDeliveryCharge] = useState<number | ''>('');
@@ -1099,13 +1099,14 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       return;
     }
     
-    const existingProduct = products.find(p => p.article === quickArticle.trim());
+    const existingProduct = products.find(p => p.article?.trim().toLowerCase() === quickArticle.trim().toLowerCase());
     if (existingProduct) {
-      // Just update the stock and image if specified
+      // Just update the stock, price, and image if specified
       const boxesNum = parseInt(quickStockBoxes) || 0;
       updateProduct({
         ...existingProduct,
         stock: (existingProduct.stock || 0) + boxesNum,
+        originalPrice: parseFloat(quickPrice) * 24,
         image: quickImage.trim() || existingProduct.image
       });
       addNotification('স্টক আপডেট', `আর্টিকেল ${quickArticle.trim()} অনুযায়ী ${boxesNum} পিস স্টকে যুক্ত করা হয়েছে।`);
@@ -2548,10 +2549,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           setManualOrderAddress('');
                           setManualOrderItems([]);
                           setManualSelectedProductId('');
-                            setManualSelectedPrice('');
-                      setManualArticleSearch('');
-                          setManualSelectedQuantity('');
-                      setManualSelectedPrice('');
+                          setManualSelectedPrice('');
+                          setManualArticleSearch('');
+                          setManualSelectedQuantity(6);
+                          setManualSelectedPrice('');
                           setIsManualOrderModalOpen(true);
                         }}
                         className="col-span-2 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 py-3 px-4 rounded-xl transition-all font-black cursor-pointer hover:-translate-y-0.5"
@@ -3061,7 +3062,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         onChange={(e) => {
                           const val = e.target.value;
                           setQuickArticle(val);
-                          const existing = products.find(p => p.article === val.trim());
+                          const existing = products.find(p => p.article?.trim().toLowerCase() === val.trim().toLowerCase());
                           if (existing) {
                             const perPairPrice = Math.round(existing.originalPrice / ((existing as any).piecesPerBox || 24));
                             setQuickPrice(perPairPrice.toString());
@@ -3621,9 +3622,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         setManualOrderAddress('');
                         setManualOrderItems([]);
                         setManualSelectedProductId('');
-                            setManualSelectedPrice('');
+                        setManualSelectedPrice('');
                         setManualArticleSearch('');
-                        setManualSelectedQuantity(1);
+                        setManualSelectedQuantity(6);
                         setIsManualOrderModalOpen(true);
                       }}
                       className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-amber-500 text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-amber-600 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
@@ -5825,8 +5826,28 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                      </div>
 
                      <button 
-                       disabled={manualOrderItems.length === 0 || !manualOrderCustomerName || !manualOrderPhone || !manualOrderAddress}
                        onClick={() => {
+                          if (manualOrderItems.length === 0) {
+                            alert('অর্ডার নিশ্চিত করতে প্রথমে অন্তত একটি পণ্য যোগ করুন!');
+                            return;
+                          }
+                          if (!manualOrderCustomerName.trim()) {
+                            alert('দয়া করে গ্রাহকের নাম লিখুন!');
+                            return;
+                          }
+                          if (!manualOrderPhone.trim()) {
+                            alert('দয়া করে গ্রাহকের মোবাইল নম্বর লিখুন!');
+                            return;
+                          }
+                          if (!manualOrderAddress.trim()) {
+                            alert('দয়া করে গ্রাহকের ডেলিভারি ঠিকানা লিখুন!');
+                            return;
+                          }
+                          if (!manualOrderPhone.trim().startsWith('01') || manualOrderPhone.trim().length < 11) {
+                            alert('দয়া করে একটি সঠিক বাংলাদেশী মোবাইল নম্বর লিখুন (যেমন: 017XXXXXXXX)।');
+                            return;
+                          }
+
                           const subtotal = manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                           const total = subtotal + (manualOrderIsDue ? 0 : (Number(manualDeliveryCharge) || 0));
                           
@@ -6129,14 +6150,22 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         const val = e.target.value;
                         setManualArticleSearch(val);
                         if (val) {
-                          const prod = products.find(p => p.article?.toLowerCase() === val.toLowerCase() || p.name?.toLowerCase().includes(val.toLowerCase()));
+                          const valLower = val.trim().toLowerCase();
+                          let prod = products.find(p => p.article?.trim().toLowerCase() === valLower);
+                          if (!prod) {
+                            prod = products.find(p => p.article?.toLowerCase().includes(valLower) || p.name?.toLowerCase().includes(valLower));
+                          }
                           if (prod) {
                             setManualSelectedProductId(prod.id);
+                            const perPairPrice = Math.round((prod.discountedPrice || prod.originalPrice) / ((prod as any).piecesPerBox || 24));
+                            setManualSelectedPrice(perPairPrice || '');
                           } else {
                             setManualSelectedProductId('');
+                            setManualSelectedPrice('');
                           }
                         } else {
                           setManualSelectedProductId('');
+                          setManualSelectedPrice('');
                         }
                       }}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold outline-none focus:border-[#2e7d32] bg-white"
@@ -6168,7 +6197,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     <button 
                       type="button"
                       onClick={() => {
-                        const qty = Number(manualSelectedQuantity) || 1;
+                        const qty = Number(manualSelectedQuantity) || 6;
                         let finalId = manualSelectedProductId;
                         let finalName = manualArticleSearch;
                         let finalPrice = Number(manualSelectedPrice) || 0;
@@ -6178,7 +6207,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             if (product) {
                                 finalName = product.name;
                                 if (manualSelectedPrice === '') {
-                                    finalPrice = product.discountedPrice || product.originalPrice;
+                                    finalPrice = Math.round((product.discountedPrice || product.originalPrice) / ((product as any).piecesPerBox || 24));
                                     if (!finalPrice) {
                                         alert('এই পণ্যের মূল্য ডাটাবেজে উল্লেখ নেই। দয়া করে একটি কাস্টম মূল্য লিখুন।');
                                         return;
@@ -6189,7 +6218,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             // Allow custom article adding
                             if (!manualArticleSearch.trim()) {
                                 alert('অনুগ্রহ করে পণ্যের আর্টিকেল বা নাম লিখুন।');
-                                return;
+                                        return;
                             }
                             if (manualSelectedPrice === '') {
                                 alert('দয়া করে এই কাস্টম পণ্যের মূল্য লিখুন।');
@@ -6214,7 +6243,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           }]);
                         }
                         // Reset selection quantity
-                        setManualSelectedQuantity('');
+                        setManualSelectedQuantity(6);
                         setManualSelectedPrice('');
                         setManualSelectedProductId('');
                         setManualArticleSearch('');
@@ -6306,80 +6335,103 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </button>
               <button 
                 type="button"
-                disabled={manualOrderItems.length === 0 || !manualOrderCustomerName || !manualOrderPhone || !manualOrderAddress}
                 onClick={() => {
-                  if (manualOrderItems.length === 0) return;
-                  if (!manualOrderCustomerName || !manualOrderPhone || !manualOrderAddress) {
-                    addNotification('সতর্কতা', 'অনুগ্রহ করে গ্রাহকের সম্পূর্ণ বিবরণ ও তথ্য প্রদান করুন।');
+                  if (manualOrderItems.length === 0) {
+                    alert('অর্ডার নিশ্চিত করতে প্রথমে অন্তত একটি পণ্য যোগ করুন!');
+                    return;
+                  }
+                  if (!manualOrderCustomerName.trim()) {
+                    alert('দয়া করে গ্রাহকের নাম লিখুন!');
+                    return;
+                  }
+                  if (!manualOrderPhone.trim()) {
+                    alert('দয়া করে গ্রাহকের মোবাইল নম্বর লিখুন!');
+                    return;
+                  }
+                  if (!manualOrderAddress.trim()) {
+                    alert('দয়া করে গ্রাহকের ডেলিভারি ঠিকানা লিখুন!');
                     return;
                   }
 
                   // Standard BD Phone number quick validation
-                  if (!manualOrderPhone.startsWith('01') || manualOrderPhone.length < 11) {
-                    addNotification('সতর্কতা', 'অনুগ্রহ করে একটি সঠিক বাংলাদেশী মোবাইল নম্বর লিখুন (যেমন: 017XXXXXXXX)।');
+                  if (!manualOrderPhone.trim().startsWith('01') || manualOrderPhone.trim().length < 11) {
+                    alert('দয়া করে একটি সঠিক বাংলাদেশী মোবাইল নম্বর লিখুন (যেমন: 017XXXXXXXX)।');
                     return;
                   }
 
-                  const subtotal = manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                  const grandTotal = subtotal + (Number(manualDeliveryCharge) || 0) + (Number(manualConditionCharge) || 0);
-                  
-                  // Deduct from stock
-                  manualOrderItems.forEach(item => {
-                    const prod = products.find(p => p.id === item.id);
-                    if (prod) {
-                      updateProduct({ ...prod, stock: Math.max(0, (prod.stock || 0) - item.quantity) });
+                  try {
+                    const subtotal = manualOrderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    const grandTotal = subtotal + (Number(manualDeliveryCharge) || 0) + (Number(manualConditionCharge) || 0);
+                    
+                    // Deduct from stock
+                    if (Array.isArray(products)) {
+                      manualOrderItems.forEach(item => {
+                        const prod = products.find(p => p.id === item.id);
+                        if (prod) {
+                          updateProduct({ ...prod, stock: Math.max(0, (prod.stock || 0) - item.quantity) });
+                        }
+                      });
                     }
-                  });
 
+                    // Safe sequential ID generation
+                    let maxId = 0;
+                    if (Array.isArray(orders)) {
+                      orders.forEach(o => {
+                        if (o && typeof o.id === 'string') {
+                          const match = o.id.match(/^Ord-(\d+)$/i);
+                          if (match) {
+                            const num = parseInt(match[1], 10);
+                            if (!isNaN(num) && num > maxId) maxId = num;
+                          } else {
+                            const matchLegacy = o.id.match(/^man-(\d+)$/i);
+                            if (matchLegacy) {
+                              const num = parseInt(matchLegacy[1], 10);
+                              if (!isNaN(num) && num > maxId) maxId = num;
+                            }
+                          }
+                        }
+                      });
+                    }
+                    const newOrderId = `Ord-${(maxId + 1).toString().padStart(3, '0')}`;
 
-                  const newManualOrderObj = {
-                    id: (() => {
-      const maxId = orders.reduce((max, o) => {
-        const match = o.id.match(/^Ord-(\d+)$/i);
-        if (match) return Math.max(max, parseInt(match[1], 10));
-        const matchLegacy = o.id.match(/^man-(\d+)$/i);
-        if (matchLegacy) return Math.max(max, parseInt(matchLegacy[1], 10));
-        return max;
-      }, 0);
-      return `Ord-${(maxId + 1).toString().padStart(3, '0')}`;
-    })(),
-                    customerName: manualOrderCustomerName,
-                    phone: manualOrderPhone,
-                    address: manualOrderAddress,
-                    items: manualOrderItems,
-                    total: grandTotal,
-                    date: new Date().toISOString(),
-                    status: 'Pending' as const
-                  };
-
-                  addSimulatedOrder(newManualOrderObj);
-
-                  if (manualOrderIsDue) {
-                    const addedDue = {
-                      id: `d-${Date.now()}`,
+                    const newManualOrderObj = {
+                      id: newOrderId,
                       customerName: manualOrderCustomerName,
                       phone: manualOrderPhone,
-                      amount: grandTotal,
-                      paidAmount: 0,
+                      address: manualOrderAddress,
+                      items: manualOrderItems,
+                      total: grandTotal,
                       date: new Date().toISOString(),
-                      status: 'Unpaid' as const
+                      status: 'Pending' as const
                     };
-                    setDues(prevDues => [addedDue, ...prevDues]);
+
+                    addSimulatedOrder(newManualOrderObj);
+
+                    if (manualOrderIsDue) {
+                      const addedDue = {
+                        id: `d-${Date.now()}`,
+                        customerName: manualOrderCustomerName,
+                        phone: manualOrderPhone,
+                        amount: grandTotal,
+                        paidAmount: 0,
+                        date: new Date().toISOString(),
+                        status: 'Unpaid' as const
+                      };
+                      setDues(prevDues => [addedDue, ...(Array.isArray(prevDues) ? prevDues : [])]);
+                    }
+
+                    // Play sound
+                    if (soundEnabled) {
+                      triggerSound();
+                    }
+
+                    setCreatedOrderForActions(newManualOrderObj);
+                  } catch (err: any) {
+                    console.error("Error creating order:", err);
+                    alert("অর্ডার নিশ্চিত করার সময় ত্রুটি ঘটেছে: " + (err.message || err));
                   }
-
-
-                  // Play sound
-                  if (soundEnabled) {
-                    triggerSound();
-                  }
-
-                  setCreatedOrderForActions(newManualOrderObj);
                 }}
-                className={`px-5 py-2 rounded-xl text-xs font-black text-white shadow-md transition-all ${
-                  (manualOrderItems.length === 0 || !manualOrderCustomerName || !manualOrderPhone || !manualOrderAddress)
-                    ? 'bg-slate-300 cursor-not-allowed'
-                    : 'bg-[#2e7d32] hover:bg-emerald-700'
-                }`}
+                className="px-5 py-2 rounded-xl text-xs font-black text-white bg-[#2e7d32] hover:bg-emerald-700 shadow-md transition-all active:scale-95"
               >
                 অর্ডার নিশ্চিত করুন
               </button>
@@ -6916,13 +6968,22 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onChange={(e) => {
                     const val = e.target.value;
                     setProductFormData(p => {
-                      const existing = !editingProduct ? products.find(prod => prod.article === val.trim()) : null;
+                      const valTrimmed = val.trim().toLowerCase();
+                      const existing = !editingProduct && valTrimmed ? products.find(prod => prod.article?.trim().toLowerCase() === valTrimmed) : null;
                       if (existing) {
                         return { 
                           ...p, 
                           article: val,
-                          originalPrice: p.originalPrice || existing.originalPrice.toString(),
-                          name: p.name || existing.name
+                          originalPrice: existing.originalPrice ? existing.originalPrice.toString() : p.originalPrice,
+                          discountedPrice: existing.discountedPrice ? existing.discountedPrice.toString() : (p.discountedPrice || ''),
+                          name: existing.name || p.name,
+                          category: existing.category || p.category,
+                          weight: existing.weight || p.weight,
+                          image: existing.image || p.image,
+                          piecesPerBox: (existing as any).piecesPerBox ? (existing as any).piecesPerBox.toString() : (p.piecesPerBox || '24'),
+                          description: existing.description || p.description,
+                          isNew: existing.isNew !== undefined ? existing.isNew : p.isNew,
+                          isFlashSale: existing.isFlashSale !== undefined ? existing.isFlashSale : p.isFlashSale,
                         };
                       }
                       return { ...p, article: val };

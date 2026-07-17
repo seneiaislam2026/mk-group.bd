@@ -21,10 +21,10 @@ export default function PrintAgreement() {
   return (
     <div className="bg-white min-h-screen text-black w-full" style={{ fontFamily: "'Noto Serif Bengali', serif" }}>
       <style dangerouslySetInnerHTML={{__html: `
+        @page { size: 8.5in 14in; margin: 1in; }
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; }
           .page-break { page-break-before: always; }
-          @page { size: legal; margin: 1in; }
         }
       `}} />
       

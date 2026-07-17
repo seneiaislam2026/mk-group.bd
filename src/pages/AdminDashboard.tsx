@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { PackagePlus, ExternalLink, RefreshCw, Boxes, ArrowRightLeft, SlidersHorizontal, Building, MapPin, Minus } from "lucide-react";
+import { PackagePlus, ExternalLink, RefreshCw, Boxes, ArrowRightLeft, SlidersHorizontal, Building, MapPin, Minus, Copy, XCircle, AlertCircle, CheckCircle2 } from "lucide-react";
 import StaffPortal from '../components/admin/StaffPortal';
 import { FileText, 
   Package, 
@@ -438,7 +438,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
          if (booking.status !== 'delivered' && booking.status !== 'cancelled') {
             try {
                 const api_url = `https://portal.packzy.com/api/v1/status_by_cid/${booking.consignment_id}`;
-                const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(api_url)}`, {
+                const response = await fetch(api_url, {
                    headers: {
                       "Api-Key": "2p80tiyscewtjoczqbqy9fcugkhpocvz",
                       "Secret-Key": "y0i0bp251lyktq4vx8fwcr2l"
@@ -452,6 +452,11 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             updatedHistory[i].status = newStatus;
                             updatedCount++;
                             if (newStatus === 'delivered') {
+                                // Update manual order status to Completed
+                                if (booking.invoice && booking.invoice !== 'N/A') {
+                                    updateOrderStatus(booking.invoice, 'Completed');
+                                }
+
                                 const codAmount = Number(data.cod_amount !== undefined ? data.cod_amount : (booking.amount || booking.cod_amount)) || 0;
                                 const deliveryCharge = Number(data.delivery_charge !== undefined ? data.delivery_charge : (data.delivery_fee !== undefined ? data.delivery_fee : 0));
                                 const codCharge = Number(data.cod_charge !== undefined ? data.cod_charge : (data.cod_fee !== undefined ? data.cod_fee : 0));
@@ -532,6 +537,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const [isStockAdjustmentModalOpen, setIsStockAdjustmentModalOpen] = useState(false);
   const [selectedStockProduct, setSelectedStockProduct] = useState<any | null>(null);
+  const [articleDetailsProduct, setArticleDetailsProduct] = useState<any | null>(null);
   const [addBoxes, setAddBoxes] = useState('1');
   const [addPairs, setAddPairs] = useState('0');
   const [adjustmentPrice, setAdjustmentPrice] = useState('');
@@ -729,9 +735,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   // Courier booking mockup states
   const [bookingOrder, setBookingOrder] = useState<any | null>(null);
   const [courierService, setCourierService] = useState<'pathao' | 'redx' | 'steadfast'>('steadfast');
-  const [weightKg, setWeightKg] = useState('1.0');
   const [deliveryType, setDeliveryType] = useState<'home' | 'point'>('home');
-  const [bookingCategory, setBookingCategory] = useState('ব্যাগ ও জুতো');
+  const [bookingCategory, setBookingCategory] = useState('জুতো ও স্যান্ডেল');
   const [bookingResult, setBookingResult] = useState<any | null>(null);
 
   // CSV Orders Report exporter and downloader
@@ -2889,71 +2894,94 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     </div>
                   ) : (
                     courierHistory.filter(c => c && (String(c.tracking_code || "").toLowerCase().includes(String(courierSearch || "").toLowerCase()) || String(c.customer_name || "").toLowerCase().includes(String(courierSearch || "").toLowerCase()))).map((delivery, i) => (
-                      <div key={i} className="bg-gradient-to-br from-white to-slate-50/50 border border-slate-200/60 rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col gap-3.5 group relative overflow-hidden hover:-translate-y-0.5">
-                        <div className="flex justify-between items-start gap-2.5">
-                          <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-sm font-black text-slate-800 truncate">{delivery.customer_name}</span>
+                      <div key={i} className="bg-white border border-slate-200/80 rounded-2xl p-4 md:p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col gap-4 group">
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex flex-col gap-1.5 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-base font-extrabold text-slate-900 truncate">{delivery.customer_name}</h3>
                               {delivery.delivery_type === 'point' ? (
-                                <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase">Point</span>
+                                <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider">Point</span>
                               ) : (
-                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase">Home</span>
+                                <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider">Home</span>
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-500 font-mono font-bold mt-0.5">{delivery.customer_phone}</span>
+                            <span className="text-sm text-slate-600 font-medium font-mono">{delivery.customer_phone}</span>
                             
-                            {/* Address details on the card */}
                             {(delivery.recipient_address || (delivery as any).customer_address || (delivery as any).address) && (
-                              <div className="flex items-start gap-1 text-[11px] text-slate-600 mt-2 bg-white/80 p-2 rounded-xl border border-slate-100 shadow-xs max-w-md">
-                                <MapPin size={12} className="text-slate-400 mt-0.5 shrink-0" />
-                                <span className="leading-relaxed line-clamp-2">{delivery.recipient_address || (delivery as any).customer_address || (delivery as any).address}</span>
+                              <div className="flex items-start gap-1.5 text-xs text-slate-500 mt-1">
+                                <MapPin size={14} className="text-slate-400 shrink-0 mt-0.5" />
+                                <span className="line-clamp-2 leading-snug">{delivery.recipient_address || (delivery as any).customer_address || (delivery as any).address}</span>
                               </div>
                             )}
-
-                            <span className="text-[10px] font-bold text-slate-400 mt-1.5 block">{new Date(delivery.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            
+                            <span className="text-[11px] font-semibold text-slate-400 mt-1 flex items-center gap-1">
+                              <Calendar size={12} />
+                              {new Date(delivery.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
                           </div>
-                          
-                          <div className="text-right flex flex-col items-end shrink-0">
-                            <span className="text-sm md:text-base font-black text-[#2e7d32]">৳{delivery.amount}</span>
+
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <span className="text-lg font-black text-slate-900">৳{delivery.amount}</span>
+                            
                             {delivery.status === 'delivered' && (delivery.delivery_charge !== undefined || delivery.cod_charge !== undefined) && (
-                              <div className="text-[10px] text-slate-500 font-bold mt-1 text-right max-w-[180px] leading-tight">
-                                {delivery.delivery_charge !== undefined ? `ডেলিভারি: -৳${delivery.delivery_charge}` : ''}
-                                {delivery.cod_charge !== undefined ? ` | কন্ডিশন: -৳${delivery.cod_charge}` : ''}
-                                <div className="text-emerald-700 font-black mt-0.5">
+                              <div className="text-[10px] text-slate-500 font-bold text-right leading-tight bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                {delivery.delivery_charge !== undefined ? <div className="text-rose-600">ডেলিভারি: -৳{delivery.delivery_charge}</div> : null}
+                                {delivery.cod_charge !== undefined ? <div className="text-rose-600">কন্ডিশন: -৳{delivery.cod_charge}</div> : null}
+                                <div className="text-emerald-700 font-black mt-1 text-xs border-t border-slate-200 pt-1">
                                   আয়: ৳{Math.max(0, Number(delivery.amount || 0) - Number(delivery.delivery_charge || 0) - Number(delivery.cod_charge || 0))}
                                 </div>
                               </div>
                             )}
-                            <div className="mt-1">
+
+                            {/* Status Badge */}
+                            <div className="mt-auto">
                               {delivery.status === 'delivered' ? (
-                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-emerald-100/50">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Delivered
+                                <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                  <CheckCircle2 size={14} className="text-emerald-600 shrink-0" /> Delivered
+                                </span>
+                              ) : delivery.status === 'delivered_approval_pending' ? (
+                                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border border-emerald-200">
+                                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0" /> Appr. Pending
+                                </span>
+                              ) : delivery.status === 'partial_delivered' ? (
+                                <span className="inline-flex items-center gap-1.5 bg-lime-100 text-lime-700 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                  <CheckCircle2 size={14} className="text-lime-600 shrink-0" /> Partial Del.
                                 </span>
                               ) : delivery.status === 'in_transit' ? (
-                                <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-amber-100/50">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div> In Transit
+                                <span className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                  <Truck size={14} className="text-blue-600 shrink-0" /> In Transit
+                                </span>
+                              ) : delivery.status === 'cancelled' ? (
+                                <span className="inline-flex items-center gap-1.5 bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                  <XCircle size={14} className="text-rose-600 shrink-0" /> Cancelled
+                                </span>
+                              ) : delivery.status === 'hold' ? (
+                                <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                  <AlertCircle size={14} className="text-amber-600 shrink-0" /> Hold
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-slate-200">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> Pending
+                                <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                  <Clock size={14} className="text-slate-500 shrink-0" /> {delivery.status ? delivery.status.replace(/_/g, ' ') : 'Pending'}
                                 </span>
                               )}
                             </div>
                           </div>
                         </div>
-                        
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+
+                        {/* Bottom Actions */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-slate-100">
                           <div 
-                            className="bg-blue-50/50 hover:bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl text-xs font-mono font-black border border-blue-100 cursor-pointer flex items-center justify-between sm:justify-start gap-1.5 transition-colors group/track w-full sm:w-auto"
+                            className="bg-slate-50 hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-xl text-xs font-mono font-bold border border-slate-200 cursor-pointer flex items-center justify-between sm:justify-start gap-2 transition-colors group/track w-full sm:w-auto"
                             onClick={() => {
                               setCourierSearch(delivery.tracking_code);
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
                             title="ক্লিক করে সার্চ বক্সে কপি করুন"
                           >
-                            <span className="flex items-center gap-1.5">
-                              <Search size={12} className="text-blue-400 group-hover/track:text-blue-600" /> {delivery.tracking_code}
+                            <span className="flex items-center gap-2">
+                              <Search size={14} className="text-slate-400 group-hover/track:text-blue-500" /> {delivery.tracking_code}
                             </span>
+                            <Copy size={14} className="text-slate-400 opacity-0 group-hover/track:opacity-100 transition-opacity" />
                           </div>
                           
                           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -2961,20 +2989,20 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               onClick={() => {
                                 window.open(`/print-sticker?id=${delivery.consignment_id}&name=${encodeURIComponent(delivery.customer_name)}&phone=${encodeURIComponent(delivery.customer_phone)}&address=${encodeURIComponent(delivery.recipient_address || (delivery as any).customer_address || (delivery as any).address || '')}&amount=${delivery.amount}`, '_blank');
                               }}
-                              className="px-2.5 py-1.5 text-xs font-black text-emerald-700 bg-emerald-50 hover:text-white hover:bg-[#2e7d32] border border-emerald-100 rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                              className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
                               title="স্টিকার প্রিন্ট করুন"
                             >
-                              <Printer size={13} /> প্রিন্ট
+                              <Printer size={14} className="text-slate-500 shrink-0" /> প্রিন্ট
                             </button>
 
                             <a 
                               href={delivery.tracking_link || 'https://steadfast.com.bd/tracking'}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="px-2.5 py-1.5 text-xs font-black text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-100 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                              className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                               title="ট্র্যাক করুন"
                             >
-                              <ExternalLink size={13} /> ট্র্যাক
+                              <ExternalLink size={14} className="text-slate-500 shrink-0" /> ট্র্যাক
                             </a>
 
                             <button
@@ -2989,10 +3017,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                   }
                                 }
                               }}
-                              className="px-2.5 py-1.5 text-xs font-black text-rose-500 bg-rose-50/50 hover:text-white hover:bg-rose-600 border border-rose-100 rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                              className="px-3 py-2 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 border border-rose-100 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
                               title="বুকিং ডিলিট করুন"
                             >
-                              <Trash2 size={13} /> ডিলিট
+                              <Trash2 size={14} className="shrink-0" /> <span className="hidden sm:inline">ডিলিট</span>
                             </button>
                           </div>
                         </div>
@@ -3256,7 +3284,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                     </div>
                                   </div>
                                   <div>
-                                    <div className={`font-extrabold tracking-wider ${
+                                    <button 
+                                      onClick={() => setArticleDetailsProduct(product)}
+                                      className={`font-extrabold tracking-wider cursor-pointer hover:opacity-80 transition-opacity text-left ${
                                       (product.stock || 0) < 5 
                                         ? 'text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 inline-block text-[11px]' 
                                         : product.isBestSelling 
@@ -3264,7 +3294,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                           : 'text-slate-900'
                                     }`}>
                                       {product.article || `PRD-${product.id}`}
-                                    </div>
+                                    </button>
                                     <div className="text-[10px] text-slate-400 mt-0.5">{product.name}</div>
                                   </div>
                                 </div>
@@ -3358,7 +3388,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded">#{(index + 1).toString().padStart(2, '0')}</span>
-                                <span className={`font-extrabold text-xs tracking-wider ${
+                                <button 
+                                  onClick={() => setArticleDetailsProduct(product)}
+                                  className={`font-extrabold text-xs tracking-wider cursor-pointer hover:opacity-80 transition-opacity text-left ${
                                   (product.stock || 0) < 5 
                                     ? 'text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 inline-block' 
                                     : product.isBestSelling 
@@ -3366,7 +3398,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                       : 'text-slate-900'
                                 }`}>
                                   {product.article || `PRD-${product.id}`}
-                                </span>
+                                </button>
                               </div>
                               <p className="text-[11px] text-slate-500 font-medium truncate">{product.name}</p>
                             </div>
@@ -3751,47 +3783,14 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                                 বিবরণ
                               </button>
                               
-                              {order.status === 'Pending' && (
+                              {order.status !== 'Completed' && !courierHistory.some(c => c.invoice === order.id) && (
                                 <button 
-                                  onClick={() => {
-                                    setEditingOrderId(order.id);
-                                    setManualOrderCustomerName(order.customerName);
-                                    setManualOrderPhone(order.phone);
-                                    setManualOrderAddress(order.address || '');
-                                    setManualOrderItems(order.items || []);
-                                    setManualDeliveryCharge(order.deliveryCharge || 0);
-                                    setManualConditionCharge(order.conditionCharge || 0);
-                                    setManualOrderIsDue(false);
-                                    setIsManualOrderModalOpen(true);
-                                  }}
-                                  className="text-amber-600 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded text-[10px] font-extrabold transition-colors border border-amber-100"
+                                  onClick={() => setBookingOrder(order)}
+                                  className="text-white hover:bg-emerald-800 bg-[#1b4332] px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                                  title="কুরিয়ার বুকিং করুন"
                                 >
-                                  এডিট
+                                  <Truck size={10} /> বুকিং
                                 </button>
-                              )}
-                              
-                              {order.status !== 'Completed' && (
-                                courierHistory.some(c => c.invoice === order.id) ? (
-                                  <button 
-                                    onClick={() => {
-                                      const bookingItem = courierHistory.find(c => c.invoice === order.id);
-                                      const consignmentId = bookingItem?.consignment_id || bookingItem?.tracking_code || '';
-                                      window.open(`/print-invoice?consignmentId=${consignmentId}&orderId=${encodeURIComponent(order.id)}&name=${encodeURIComponent(order.customerName)}&phone=${encodeURIComponent(order.phone)}&amount=${order.total}`, "_blank");
-                                    }}
-                                    className="text-white hover:bg-emerald-700 bg-emerald-600 px-2.5 py-1 rounded text-[10px] font-black flex items-center gap-1 shrink-0 cursor-pointer shadow-sm"
-                                    title="প্রিন্ট ইনভয়েস"
-                                  >
-                                    <Download size={10} /> প্রিন্ট
-                                  </button>
-                                ) : (
-                                  <button 
-                                    onClick={() => setBookingOrder(order)}
-                                    className="text-white hover:bg-emerald-800 bg-[#1b4332] px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shrink-0"
-                                    title="কুরিয়ার বুকিং করুন"
-                                  >
-                                    <Truck size={10} /> বুকিং
-                                  </button>
-                                )
                               )}
 
                               <select 
@@ -3916,45 +3915,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                           >
                             বিবরণ
                           </button>
-                          {order.status === 'Pending' && (
+                          {order.status !== 'Completed' && !courierHistory.some(c => c.invoice === order.id) && (
                             <button 
-                              onClick={() => {
-                                setEditingOrderId(order.id);
-                                setManualOrderCustomerName(order.customerName);
-                                setManualOrderPhone(order.phone);
-                                setManualOrderAddress(order.address || '');
-                                setManualOrderItems(order.items || []);
-                                setManualDeliveryCharge(order.deliveryCharge || 0);
-                                setManualConditionCharge(order.conditionCharge || 0);
-                                setManualOrderIsDue(false);
-                                setIsManualOrderModalOpen(true);
-                              }}
-                              className="text-amber-600 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded text-[10px] font-extrabold transition-colors border border-amber-100 shrink-0"
+                              onClick={() => setBookingOrder(order)}
+                              className="bg-[#1b4332] text-white hover:bg-emerald-800 px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-colors shadow-sm cursor-pointer shrink-0"
                             >
-                              এডিট
+                              <Truck size={10} /> বুকিং
                             </button>
-                          )}
-                          {order.status !== 'Completed' && (
-                            courierHistory.some(c => c.invoice === order.id) ? (
-                              <button 
-                                onClick={() => {
-                                  const bookingItem = courierHistory.find(c => c.invoice === order.id);
-                                  const consignmentId = bookingItem?.consignment_id || bookingItem?.tracking_code || '';
-                                  window.open(`/print-invoice?consignmentId=${consignmentId}&orderId=${encodeURIComponent(order.id)}&name=${encodeURIComponent(order.customerName)}&phone=${encodeURIComponent(order.phone)}&amount=${order.total}`, '_blank');
-                                }}
-                                className="text-white hover:bg-emerald-700 bg-emerald-600 px-2 py-1 rounded text-[10px] font-black flex items-center gap-1 shrink-0 cursor-pointer shadow-sm"
-                                title="প্রিন্ট ইনভয়েস"
-                              >
-                                <Download size={10} /> প্রিন্ট
-                              </button>
-                            ) : (
-                              <button 
-                                onClick={() => setBookingOrder(order)}
-                                className="bg-[#1b4332] text-white hover:bg-emerald-800 px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-colors shadow-sm cursor-pointer shrink-0"
-                              >
-                                <Truck size={10} /> বুকিং
-                              </button>
-                            )
                           )}
                           <select 
                             value={order.status}
@@ -6133,6 +6100,25 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </div>
               </div>
 
+              {/* Barcode Printing Card */}
+              <div className="border-t border-slate-100 pt-6 space-y-4">
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-800 flex items-center gap-1.5">
+                    <ScanBarcode size={18} className="text-[#2e7d32]" />
+                    ইনভেন্টরি বারকোড স্টিকার প্রিন্ট
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-0.5">ইনভেন্টরি স্টকে থাকা সকল পণ্যের জন্য 3x3 ইঞ্চি সাইজের স্টিকার প্রিন্ট করুন</p>
+                </div>
+                <div className="pt-2">
+                  <button 
+                    onClick={() => window.open('/print-product-barcodes', '_blank')}
+                    className="w-full bg-[#1b4332] text-white py-3 px-6 rounded-xl text-xs font-black hover:bg-emerald-800 shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Printer size={16} /> সকল ইন-স্টক পণ্যের বারকোড প্রিন্ট করুন
+                  </button>
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -6778,6 +6764,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         created_at: new Date().toISOString()
                       };
                       await setDoc(doc(courierHistoryCollection, newBooking.consignment_id.toString()), newBooking);
+                      
+                      // Update the manual order status to "Confirmed" (পণ্য প্রস্তুত করা হচ্ছে)
+                      if (courierBookingData.invoice && courierBookingData.invoice !== 'N/A') {
+                          updateOrderStatus(courierBookingData.invoice, 'Confirmed');
+                      }
+
                       setAutoBookingResult({
                         status: 'Success',
                         consignment_id: data.consignment?.consignment_id || data.consignment_id,
@@ -7410,17 +7402,6 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] text-slate-500 font-black uppercase tracking-wider mb-1.5">প্যাকেজের ওজন (কেজি)</label>
-                    <input 
-                      type="text" 
-                      value={weightKg} 
-                      onChange={(e) => setWeightKg(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold focus:outline-emerald-600" 
-                      placeholder="যেমন: ১.৫"
-                    />
-                  </div>
-
-                  <div>
                     <label className="block text-[11px] text-slate-500 font-black uppercase tracking-wider mb-2">ডেলিভারি ধরন (Delivery Type)</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button 
@@ -7476,7 +7457,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               recipient_phone: bookingOrder.phone,
                               recipient_address: bookingOrder.address,
                               cod_amount: bookingOrder.total,
-                              note: `Weight: ${weightKg}kg | Category: ${bookingCategory} | Delivery: ${deliveryType === 'home' ? 'Home Delivery' : 'Point Delivery'}`
+                              note: `Category: ${bookingCategory} | Delivery: ${deliveryType === 'home' ? 'Home Delivery' : 'Point Delivery'}`
                             })
                           });
                           const data = await response.json();
@@ -7495,6 +7476,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               created_at: new Date().toISOString()
                             };
                             await setDoc(doc(courierHistoryCollection, newBooking.consignment_id.toString()), newBooking);
+                            
+                            // Update the manual order status to "Confirmed" (পণ্য প্রস্তুত করা হচ্ছে)
+                            if (bookingOrder && bookingOrder.id) {
+                                updateOrderStatus(bookingOrder.id, 'Confirmed');
+                            }
+
                             setBookingResult({
                               status: 'Success',
                               consignment_id: data.consignment?.consignment_id || data.consignment_id,
@@ -7667,6 +7654,110 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       </div>
                     </div>
                   ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Article Details Modal */}
+      {articleDetailsProduct && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm select-none">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-4 sm:p-5 border-b border-gray-100 flex justify-between items-center bg-slate-50 sticky top-0 shrink-0">
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2">
+                  <Package size={20} className="text-emerald-600" /> 
+                  আর্টিকেল: {articleDetailsProduct.article || `PRD-${articleDetailsProduct.id}`}
+                </h3>
+                <p className="text-xs font-bold text-slate-500 mt-0.5">{articleDetailsProduct.name || 'পণ্যের নাম নেই'}</p>
+              </div>
+              <button 
+                onClick={() => setArticleDetailsProduct(null)}
+                className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-500 rounded-full hover:bg-slate-100 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1 space-y-6">
+              <div className="flex gap-4">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl overflow-hidden border border-slate-200 shrink-0 bg-slate-50">
+                  {articleDetailsProduct.image ? (
+                    <img src={articleDetailsProduct.image} alt={articleDetailsProduct.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                      <Package size={32} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col justify-center space-y-3">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">এন্ট্রির তারিখ</span>
+                    <span className="font-extrabold text-slate-700 text-sm">
+                      {articleDetailsProduct.id.startsWith('p-') ? new Date(parseInt(articleDetailsProduct.id.split('-')[1])).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }) : 'অজানা'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">মূল্য</span>
+                    <span className="font-black text-emerald-600 text-base">৳{articleDetailsProduct.discountedPrice || articleDetailsProduct.originalPrice}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">বর্তমান স্টক</span>
+                    <span className="font-extrabold text-slate-700 text-sm">{articleDetailsProduct.stock || 0} টি</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-5">
+                <h4 className="font-extrabold text-slate-800 text-sm mb-4">সেলস হিস্ট্রি (গত ৭ দিন)</h4>
+                <div className="h-40 w-full relative">
+                  {(() => {
+                    const last7Days = Array.from({length: 7}).map((_, i) => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - (6 - i));
+                      return d.toISOString().split('T')[0];
+                    });
+
+                    const salesData = last7Days.map(dateStr => {
+                      const dayOrders = orders.filter(o => 
+                        o.date.startsWith(dateStr) && 
+                        o.status !== 'Cancelled' && 
+                        o.items.some(item => item.id === articleDetailsProduct.id)
+                      );
+                      
+                      const qty = dayOrders.reduce((sum, order) => {
+                        const item = order.items.find(i => i.id === articleDetailsProduct.id);
+                        return sum + (item ? item.quantity : 0);
+                      }, 0);
+                      
+                      return { 
+                        date: new Date(dateStr).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' }), 
+                        qty 
+                      };
+                    });
+
+                    const maxQty = Math.max(...salesData.map(d => d.qty), 5);
+
+                    return (
+                      <div className="h-full flex items-end justify-between gap-1 sm:gap-2 pb-6 relative px-2">
+                        {salesData.map((data, i) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1 group h-full justify-end">
+                            <span className="text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1">{data.qty}</span>
+                            <div 
+                              className="w-full sm:w-8 bg-emerald-100 group-hover:bg-emerald-200 rounded-t-md transition-all relative overflow-hidden"
+                              style={{ height: `${(data.qty / maxQty) * 100}%`, minHeight: '4px' }}
+                            >
+                              {data.qty > 0 && <div className="absolute bottom-0 inset-x-0 bg-emerald-500 rounded-t-sm transition-all" style={{ height: '100%' }}></div>}
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-400 absolute bottom-0 whitespace-nowrap" style={{ left: `calc(${100/7 * (i + 0.5)}%)`, transform: 'translateX(-50%)' }}>
+                              {data.date.split(' ')[0]}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           </div>

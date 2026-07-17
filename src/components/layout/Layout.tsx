@@ -14,6 +14,7 @@ import TopBannerNotification from '../ui/TopBannerNotification';
 import PrintInvoice from '../../pages/PrintInvoice';
 import PrintAgreement from '../../pages/PrintAgreement';
 import PrintSticker from '../../pages/PrintSticker';
+import PrintProductBarcodes from '../../pages/PrintProductBarcodes';
 import { MessageCircle } from 'lucide-react';
 
 export default function Layout() {
@@ -37,10 +38,11 @@ export default function Layout() {
 
   // Simple state-based routing router for demonstration since we want 
   // both storefront and admin in one app without complex routing setup
-  const [currentView, setCurrentView] = useState<'store' | 'admin' | 'landing' | 'print' | 'print-agreement' | 'print-sticker'>(() => {
+  const [currentView, setCurrentView] = useState<'store' | 'admin' | 'landing' | 'print' | 'print-agreement' | 'print-sticker' | 'print-product-barcodes'>(() => {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-invoice')) return 'print';
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-agreement')) return 'print-agreement';
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-sticker')) return 'print-sticker';
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/print-product-barcodes')) return 'print-product-barcodes';
     if (typeof window === 'undefined') return 'store';
     if (window.location.hash === '#admin') return 'admin';
     if (getProductIdFromUrl()) return 'landing';
@@ -64,6 +66,8 @@ export default function Layout() {
         setLandingProductId(null);
       } else if (window.location.pathname.startsWith('/print-sticker')) {
         setCurrentView('print-sticker');
+      } else if (window.location.pathname.startsWith('/print-product-barcodes')) {
+        setCurrentView('print-product-barcodes');
       } else if (window.location.pathname.startsWith('/print-agreement')) {
         setCurrentView('print-agreement');
       } else if (window.location.pathname.startsWith('/print-invoice')) {
@@ -125,6 +129,14 @@ export default function Layout() {
             <meta name="robots" content="noindex, nofollow" />
           </Helmet>
           <PrintSticker />
+        </>
+      ) : currentView === 'print-product-barcodes' ? (
+        <>
+          <Helmet>
+            <title>প্রোডাক্ট বারকোড প্রিন্ট | এম.কে.গ্রুপ</title>
+            <meta name="robots" content="noindex, nofollow" />
+          </Helmet>
+          <PrintProductBarcodes />
         </>
       ) : currentView === 'admin' ? (
         <>

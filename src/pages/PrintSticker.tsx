@@ -119,7 +119,7 @@ export default function PrintSticker() {
       {/* Print styles */}
       <style>{`
         @page {
-          size: 3in 3in;
+          size: 4in 4in;
           margin: 0 !important;
         }
         @media print {
@@ -128,8 +128,9 @@ export default function PrintSticker() {
             color: black !important;
             padding: 0 !important;
             margin: 0 !important;
-            height: 100% !important;
-            overflow: hidden !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
           }
           .page-break {
             page-break-after: always !important;
@@ -138,41 +139,42 @@ export default function PrintSticker() {
           .sticker-card {
             border: none !important;
             box-shadow: none !important;
-            margin: 0 auto !important;
-            width: 2.7in !important;
-            height: 2.7in !important;
-            max-width: 2.7in !important;
-            max-height: 2.7in !important;
+            margin: 0 !important;
+            width: 4in !important;
+            height: 4in !important;
+            max-width: 4in !important;
+            max-height: 4in !important;
             border-radius: 0 !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
             page-break-inside: avoid !important;
             box-sizing: border-box !important;
+            padding: 0.25in !important;
           }
         }
       `}</style>
       {stickers.map((sticker, idx) => (
         <div 
           key={idx} 
-          className={`sticker-card w-[3in] h-[3in] print:w-[2.7in] print:h-[2.7in] bg-white border border-slate-300 shadow-sm rounded mb-4 print:mb-0 p-2 flex flex-col justify-between box-border overflow-hidden ${
+          className={`sticker-card w-[4in] h-[4in] print:w-[4in] print:h-[4in] bg-white border border-slate-300 shadow-sm rounded mb-4 print:mb-0 p-4 flex flex-col justify-between box-border overflow-hidden ${
             idx < stickers.length - 1 ? 'page-break' : ''
           }`}
         >
           {/* Header */}
-          <div className="flex justify-between items-start border-b border-dashed border-slate-300 pb-1.5 mb-1.5 shrink-0">
+          <div className="flex justify-between items-start border-b border-dashed border-slate-300 pb-2 mb-2 shrink-0">
             <div>
-              <h1 className="text-sm font-black tracking-wider text-black leading-tight">MK GROUP</h1>
-              <p className="text-[7px] font-bold text-slate-500 leading-tight">
+              <h1 className="text-base font-black tracking-wider text-black leading-tight uppercase">MK GROUP</h1>
+              <p className="text-[9px] font-bold text-slate-500 leading-tight">
                 Savar, Dhaka | 01969317241
               </p>
             </div>
             <div className="text-right">
               {sticker.delivery_type === 'point' ? (
-                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[8px] font-black uppercase inline-block">
+                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded text-[10px] font-black uppercase inline-block">
                   Point
                 </span>
               ) : (
-                <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-1.5 py-0.5 rounded text-[8px] font-black uppercase inline-block">
+                <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-black uppercase inline-block">
                   Home
                 </span>
               )}
@@ -180,51 +182,51 @@ export default function PrintSticker() {
           </div>
 
           {/* Consignee Info */}
-          <div className="flex-1 space-y-0.5 text-[10px] text-left overflow-hidden">
+          <div className="flex-1 space-y-1.5 text-xs text-left overflow-hidden flex flex-col justify-center">
             <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[8px] uppercase w-10 shrink-0">Name:</span>
-              <span className="font-black text-black leading-tight truncate">{sticker.customer_name}</span>
+              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">Name:</span>
+              <span className="font-black text-black leading-tight text-sm truncate">{sticker.customer_name}</span>
             </div>
             <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[8px] uppercase w-10 shrink-0">Phone:</span>
-              <span className="font-black text-black font-mono leading-tight">{sticker.customer_phone}</span>
+              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">Phone:</span>
+              <span className="font-black text-black font-mono leading-tight text-sm">{sticker.customer_phone}</span>
             </div>
             <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[8px] uppercase w-10 shrink-0">Address:</span>
-              <span className="font-bold text-slate-800 leading-tight line-clamp-2">
+              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">Address:</span>
+              <span className="font-bold text-slate-800 leading-snug line-clamp-2 text-xs">
                 {sticker.recipient_address || (sticker as any).customer_address || (sticker as any).address || 'ঠিকানা পাওয়া যায়নি'}
               </span>
             </div>
-            <div className="flex items-start gap-1 pt-0.5 mt-0.5 border-t border-slate-100">
-              <span className="font-extrabold text-slate-500 text-[8px] uppercase w-10 shrink-0">ID:</span>
-              <span className="font-bold text-indigo-900 font-mono bg-indigo-50 px-1 rounded leading-tight">
+            <div className="flex items-start gap-1 pt-1 mt-1 border-t border-slate-100">
+              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">Booking ID:</span>
+              <span className="font-bold text-indigo-900 font-mono bg-indigo-50 px-1.5 py-0.5 rounded leading-none text-xs">
                 {sticker.consignment_id || sticker.tracking_code || 'N/A'}
               </span>
             </div>
             <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[8px] uppercase w-10 shrink-0">COD Cash:</span>
-              <span className="font-black text-emerald-800 text-xs leading-tight">৳{sticker.amount}</span>
+              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">COD Cash:</span>
+              <span className="font-black text-emerald-800 text-base leading-tight">৳{sticker.amount}</span>
             </div>
           </div>
 
           {/* Barcode & Tracking */}
-          <div className="mt-1 pt-1.5 border-t border-dashed border-slate-300 flex flex-col items-center justify-end shrink-0 h-[38px] overflow-hidden">
+          <div className="mt-2 pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-center shrink-0 h-[70px] overflow-hidden">
             {sticker.consignment_id || sticker.tracking_code ? (
-              <div className="scale-[0.8] origin-bottom flex items-end justify-center h-full">
+              <div className="flex items-center justify-center h-full">
                 <Barcode 
                   value={String(sticker.consignment_id || sticker.tracking_code)} 
-                  height={28} 
-                  width={1.2} 
-                  fontSize={10} 
+                  height={38} 
+                  width={1.4} 
+                  fontSize={11} 
                   margin={0} 
                   displayValue={true} 
                 />
               </div>
             ) : (
-              <div className="text-[9px] text-slate-400 font-bold mb-1">No Booking ID</div>
+              <div className="text-[10px] text-slate-400 font-bold mb-1">No Booking ID</div>
             )}
             {sticker.invoice && (
-              <div className="text-[7px] font-bold text-slate-400 mt-0.5 font-mono leading-none">
+              <div className="text-[8px] font-bold text-slate-400 mt-1 font-mono leading-none">
                 Order Invoice: {sticker.invoice}
               </div>
             )}

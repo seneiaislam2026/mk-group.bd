@@ -123,11 +123,13 @@ export default function PrintSticker() {
           margin: 0;
         }
         @media print {
-          body {
+          html, body {
             background: white !important;
             color: black !important;
             padding: 0 !important;
             margin: 0 !important;
+            height: 100% !important;
+            overflow: hidden !important;
           }
           .page-break {
             page-break-after: always;
@@ -137,19 +139,19 @@ export default function PrintSticker() {
             border: none !important;
             box-shadow: none !important;
             margin: 0 !important;
-            width: 3in !important;
-            height: 3in !important;
+            width: 2.9in !important;
+            height: 2.9in !important;
             border-radius: 0 !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            page-break-inside: avoid;
           }
         }
       `}</style>
-
       {stickers.map((sticker, idx) => (
         <div 
           key={idx} 
-          className={`sticker-card w-[3in] h-[3in] bg-white border border-slate-300 shadow-sm rounded mb-4 print:mb-0 p-2 flex flex-col justify-between box-border overflow-hidden ${
+          className={`sticker-card w-[2.9in] h-[2.9in] bg-white border border-slate-300 shadow-sm rounded mb-4 print:mb-0 p-2 flex flex-col justify-between box-border overflow-hidden ${
             idx < stickers.length - 1 ? 'page-break' : ''
           }`}
         >

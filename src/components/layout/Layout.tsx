@@ -95,10 +95,10 @@ export default function Layout() {
         <title>এম.কে.গ্রুপ | MK Group</title>
         <meta name="description" content="এম.কে.গ্রুপ - আপনার পছন্দের সকল সামগ্রী।" />
         <meta name="keywords" content="MK Group, এম.কে.গ্রুপ, এম কে গ্রুপ" />
-        <link rel="canonical" href="https://www.nirapodkhaddoshomvar.com/" />
+        <link rel="canonical" href="https://www.mkgroup.com.bd/" />
         <meta property="og:title" content="এম.কে.গ্রুপ | MK Group" />
         <meta property="og:description" content="এম.কে.গ্রুপ - আপনার পছন্দের সকল সামগ্রী।" />
-        <meta property="og:url" content="https://www.nirapodkhaddoshomvar.com/" />
+        <meta property="og:url" content="https://www.mkgroup.com.bd/" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="এম.কে.গ্রুপ | MK Group" />
         <meta name="twitter:description" content="এম.কে.গ্রুপ - আপনার পছন্দের সকল সামগ্রী।" />
@@ -109,7 +109,7 @@ export default function Layout() {
       {currentView === 'print-agreement' ? (
         <>
           <Helmet>
-            <title>চুক্তিনামা প্রিন্ট | এম.কে.গ্রুপ</title>
+            <title>Agreement Print - MK Group</title>
             <meta name="robots" content="noindex, nofollow" />
           </Helmet>
           <PrintAgreement />
@@ -117,7 +117,7 @@ export default function Layout() {
       ) : currentView === 'print' ? (
         <>
           <Helmet>
-            <title>ইনভয়েস প্রিন্ট | এম.কে.গ্রুপ</title>
+            <title>Invoice Print - MK Group</title>
             <meta name="robots" content="noindex, nofollow" />
           </Helmet>
           <PrintInvoice />
@@ -125,7 +125,7 @@ export default function Layout() {
       ) : currentView === 'print-sticker' ? (
         <>
           <Helmet>
-            <title>স্টিকার প্রিন্ট | এম.কে.গ্রুপ</title>
+            <title>Sticker Print - MK Group</title>
             <meta name="robots" content="noindex, nofollow" />
           </Helmet>
           <PrintSticker />
@@ -133,7 +133,7 @@ export default function Layout() {
       ) : currentView === 'print-product-barcodes' ? (
         <>
           <Helmet>
-            <title>প্রোডাক্ট বারকোড প্রিন্ট | এম.কে.গ্রুপ</title>
+            <title>Product Barcode Print - MK Group</title>
             <meta name="robots" content="noindex, nofollow" />
           </Helmet>
           <PrintProductBarcodes />

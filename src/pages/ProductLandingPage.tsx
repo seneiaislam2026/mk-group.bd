@@ -168,7 +168,7 @@ export default function ProductLandingPage({ productId, onBack }: ProductLanding
 
   const metaTitle = `${product.name} | এম.কে.গ্রুপ`;
   const metaDescription = `${product.name} অনলাইনে অর্ডার করুন এম.কে.গ্রুপ থেকে। ১০০% খাঁটি, ফ্রেশ ও কেমিক্যালমুক্ত। ক্যাশ অন ডেলিভারিতে সারাদেশে ডেলিভারি!`;
-  const productUrl = typeof window !== 'undefined' ? `${window.location.origin}/#product=${product.id}` : `https://www.nirapodkhaddoshomvar.com/#product=${product.id}`;
+  const productUrl = typeof window !== 'undefined' ? `${window.location.origin}/#product=${product.id}` : `https://www.mkgroup.com.bd/#product=${product.id}`;
 
   return (
     <div className="bg-slate-50 min-h-screen pb-16 font-sans">

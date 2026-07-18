@@ -49,7 +49,8 @@ import { FileText,
   Truck, Upload,
   Printer,
   ScanBarcode,
-  ScanLine
+  ScanLine,
+  Edit3
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Product, Investor } from '../types';
@@ -112,7 +113,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       subTitleOrders: 'স্টোরের সকল সক্রিয় গ্রাহকের ক্যাশ অন ডেলিভারি অর্ডার ট্র্যাক',
     },
     en: {
-      appName: 'Nirapod Khaddo',
+      appName: 'MK Group',
       adminPanel: 'Admin Panel',
       dashboard: 'Dashboard',
       productManagement: 'Products',
@@ -518,6 +519,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [isCourierBookingOpen, setIsCourierBookingOpen] = useState(false);
   const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
   const [autoBookingResult, setAutoBookingResult] = useState<any | null>(null);
+  const [editingCourierData, setEditingCourierData] = useState<any | null>(null);
+  const [isUpdatingCourier, setIsUpdatingCourier] = useState(false);
   const [courierBookingData, setCourierBookingData] = useState({
     invoice: '',
     recipient_name: '',
@@ -776,7 +779,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Nirapod_Khaddo_Orders_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `MK_Group_Orders_${new Date().toISOString().split('T')[0]}.csv`;
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
@@ -831,7 +834,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Nirapod_Khaddo_Shomvar_Orders_Report</title>
+          <title>MK_Group_Orders_Report</title>
           <meta charset="utf-8">
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap');
@@ -998,7 +1001,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Nirapod_Khaddo_Orders_Report_${new Date().toISOString().split('T')[0]}.html`;
+    link.download = `MK_Group_Orders_Report_${new Date().toISOString().split('T')[0]}.html`;
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
@@ -2862,26 +2865,51 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               
               <div className="flex-1 overflow-y-auto bg-slate-50/50 p-2 md:p-4">
                 {/* Real-time Courier Metrics */}
-                <div className="grid grid-cols-3 gap-3 mb-4 select-none">
-                  <div className="bg-white border border-slate-100 rounded-2xl p-3 md:p-4 shadow-sm flex flex-col justify-between">
-                    <span className="text-[9px] md:text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">মোট বুকিং (Total Booked)</span>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-base md:text-xl font-black text-slate-900">{courierHistory.length}</span>
-                      <span className="text-[10px] md:text-xs text-slate-400 font-bold">টি পার্সেল</span>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3 select-none">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between">
+                    <span className="text-[10px] md:text-xs text-slate-400 font-extrabold uppercase tracking-wider">মোট বুকিং (Total Booked)</span>
+                    <div className="flex items-baseline gap-1.5 mt-2">
+                      <span className="text-xl md:text-2xl font-black text-slate-900">{courierHistory.length}</span>
+                      <span className="text-xs md:text-sm text-slate-500 font-bold">টি পার্সেল</span>
                     </div>
                   </div>
-                  <div className="bg-emerald-50/30 border border-emerald-100 rounded-2xl p-3 md:p-4 shadow-sm flex flex-col justify-between">
-                    <span className="text-[9px] md:text-[10px] text-emerald-600 font-extrabold uppercase tracking-wider">ডেলিভারি সম্পন্ন (Delivered)</span>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-base md:text-xl font-black text-emerald-800">{courierHistory.filter(c => c && c.status === 'delivered').length}</span>
-                      <span className="text-[10px] md:text-xs text-emerald-600 font-bold">টি পার্সেল</span>
+                  <div className="bg-emerald-50/30 border border-emerald-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between">
+                    <span className="text-[10px] md:text-xs text-emerald-600 font-extrabold uppercase tracking-wider">ডেলিভারি সম্পন্ন (Delivered)</span>
+                    <div className="flex items-baseline gap-1.5 mt-2">
+                      <span className="text-xl md:text-2xl font-black text-emerald-800">{courierHistory.filter(c => c && c.status === 'delivered').length}</span>
+                      <span className="text-xs md:text-sm text-emerald-700 font-bold">টি পার্সেল</span>
                     </div>
                   </div>
-                  <div className="bg-amber-50/30 border border-amber-100 rounded-2xl p-3 md:p-4 shadow-sm flex flex-col justify-between">
-                    <span className="text-[9px] md:text-[10px] text-amber-700 font-extrabold uppercase tracking-wider">চলমান/পেন্ডিং (Pending)</span>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-base md:text-xl font-black text-amber-900">{courierHistory.filter(c => c && c.status !== 'delivered').length}</span>
-                      <span className="text-[10px] md:text-xs text-amber-700 font-bold">টি পার্সেল</span>
+                  <div className="bg-amber-50/30 border border-amber-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between col-span-2 md:col-span-1">
+                    <span className="text-[10px] md:text-xs text-amber-700 font-extrabold uppercase tracking-wider">চলমান/পেন্ডিং (Pending)</span>
+                    <div className="flex items-baseline gap-1.5 mt-2">
+                      <span className="text-xl md:text-2xl font-black text-amber-900">{courierHistory.filter(c => c && c.status !== 'delivered' && c.status !== 'cancelled').length}</span>
+                      <span className="text-xs md:text-sm text-amber-800 font-bold">টি পার্সেল</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5 select-none">
+                  <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-slate-50 rounded-full blur-xl"></div>
+                    <span className="text-[11px] md:text-xs text-slate-500 font-extrabold tracking-wide relative z-10">হিসাবে আছে (মোট টাকার পরিমাণ)</span>
+                    <div className="flex items-baseline gap-1 mt-2.5 relative z-10">
+                      <span className="text-2xl md:text-3xl font-black text-slate-900">৳{courierHistory.filter(c => c && c.status !== 'cancelled').reduce((acc, c) => acc + (Number(c.amount || c.cod_amount) || 0), 0).toLocaleString('bn-BD')}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white border border-rose-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-rose-50 rounded-full blur-xl"></div>
+                    <span className="text-[11px] md:text-xs text-rose-500 font-extrabold tracking-wide relative z-10">কত টাকা পাবো (পেন্ডিং কালেকশন)</span>
+                    <div className="flex items-baseline gap-1 mt-2.5 relative z-10">
+                      <span className="text-2xl md:text-3xl font-black text-rose-600">৳{courierHistory.filter(c => c && c.status !== 'delivered' && c.status !== 'cancelled').reduce((acc, c) => acc + (Number(c.amount || c.cod_amount) || 0), 0).toLocaleString('bn-BD')}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white border border-emerald-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-emerald-50 rounded-full blur-xl"></div>
+                    <span className="text-[11px] md:text-xs text-emerald-600 font-extrabold tracking-wide relative z-10">ব্যাংকে আসছে (নেট কালেকশন)</span>
+                    <div className="flex items-baseline gap-1 mt-2.5 relative z-10">
+                      <span className="text-2xl md:text-3xl font-black text-emerald-600">৳{courierHistory.filter(c => c && c.status === 'delivered').reduce((acc, c) => acc + Math.max(0, (Number(c.amount || c.cod_amount) || 0) - (Number(c.delivery_charge) || 0) - (Number(c.cod_charge) || 0)), 0).toLocaleString('bn-BD')}</span>
                     </div>
                   </div>
                 </div>
@@ -2898,7 +2926,18 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex flex-col gap-1.5 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-base font-extrabold text-slate-900 truncate">{delivery.customer_name}</h3>
+                              {delivery.status === 'pending' || delivery.status === 'in_review' ? (
+                                <button
+                                  onClick={() => setEditingCourierData(delivery)}
+                                  className="text-base font-extrabold text-slate-900 truncate hover:text-[#2e7d32] transition-colors cursor-pointer text-left flex items-center gap-1.5"
+                                  title="এডিট করতে ক্লিক করুন"
+                                >
+                                  {delivery.customer_name}
+                                  <Edit3 size={12} className="text-slate-400" />
+                                </button>
+                              ) : (
+                                <h3 className="text-base font-extrabold text-slate-900 truncate">{delivery.customer_name}</h3>
+                              )}
                               {delivery.delivery_type === 'point' ? (
                                 <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider">Point</span>
                               ) : (
@@ -7759,6 +7798,103 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   })()}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Courier Booking Modal */}
+      {editingCourierData && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-extrabold text-slate-800 flex items-center gap-2">
+                <Edit3 size={18} className="text-[#2e7d32]" />
+                বুকিং এডিট করুন ({editingCourierData.tracking_code})
+              </h3>
+              <button 
+                onClick={() => setEditingCourierData(null)}
+                className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+              >
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto max-h-[70vh]">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">কাস্টমারের নাম</label>
+                  <input
+                    type="text"
+                    value={editingCourierData.customer_name}
+                    onChange={(e) => setEditingCourierData({...editingCourierData, customer_name: e.target.value})}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-[#2e7d32] outline-none text-sm font-bold text-slate-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">মোবাইল নম্বর</label>
+                  <input
+                    type="text"
+                    value={editingCourierData.customer_phone}
+                    onChange={(e) => setEditingCourierData({...editingCourierData, customer_phone: e.target.value})}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-[#2e7d32] outline-none text-sm font-mono font-bold text-slate-700"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">ঠিকানা</label>
+                  <textarea
+                    value={editingCourierData.recipient_address || editingCourierData.customer_address || editingCourierData.address || ''}
+                    onChange={(e) => setEditingCourierData({...editingCourierData, recipient_address: e.target.value})}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-[#2e7d32] outline-none text-sm font-bold text-slate-700 min-h-[80px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">কালেকশন অ্যামাউন্ট (৳)</label>
+                  <input
+                    type="number"
+                    value={editingCourierData.amount || editingCourierData.cod_amount}
+                    onChange={(e) => setEditingCourierData({...editingCourierData, amount: e.target.value, cod_amount: e.target.value})}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-[#2e7d32] outline-none text-sm font-black text-[#115e5a]"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-slate-50">
+              <button
+                onClick={() => setEditingCourierData(null)}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
+              >
+                বাতিল
+              </button>
+              <button
+                disabled={isUpdatingCourier}
+                onClick={async () => {
+                  setIsUpdatingCourier(true);
+                  try {
+                    // Update in Firestore
+                    await updateDoc(doc(courierHistoryCollection, editingCourierData.consignment_id.toString()), {
+                      customer_name: editingCourierData.customer_name,
+                      customer_phone: editingCourierData.customer_phone,
+                      recipient_address: editingCourierData.recipient_address || editingCourierData.customer_address || editingCourierData.address,
+                      customer_address: editingCourierData.recipient_address || editingCourierData.customer_address || editingCourierData.address,
+                      address: editingCourierData.recipient_address || editingCourierData.customer_address || editingCourierData.address,
+                      amount: editingCourierData.amount || editingCourierData.cod_amount,
+                      cod_amount: editingCourierData.amount || editingCourierData.cod_amount
+                    });
+                    
+                    addNotification('সাফল্য', 'পার্সেল ইনফরমেশন আপডেট করা হয়েছে।');
+                    setEditingCourierData(null);
+                  } catch (error: any) {
+                    alert('আপডেট করতে সমস্যা হয়েছে: ' + error.message);
+                  } finally {
+                    setIsUpdatingCourier(false);
+                  }
+                }}
+                className="px-6 py-2 rounded-xl text-sm font-bold text-white bg-[#2e7d32] hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {isUpdatingCourier ? 'আপডেট হচ্ছে...' : 'আপডেট করুন'}
+              </button>
             </div>
           </div>
         </div>

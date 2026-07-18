@@ -89,9 +89,9 @@ export default function PrintInvoice() {
 
   if (isLoading || !invoiceData) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4" style={{ fontFamily: 'Tahoma, sans-serif' }}>
         <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-600 font-bold font-sans text-xs">ইনভয়েস লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...</p>
+        <p className="text-slate-600 font-bold text-xs">ইনভয়েস লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...</p>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export default function PrintInvoice() {
   const displayDate = invoiceData.date ? new Date(invoiceData.date).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB');
 
   return (
-    <div className="bg-white min-h-screen py-8 font-serif print:py-0 print:bg-white flex justify-center text-black print:min-h-0">
+    <div className="bg-white min-h-screen py-8 print:py-0 print:bg-white flex justify-center text-black print:min-h-0" style={{ fontFamily: 'Tahoma, sans-serif' }}>
       <div className="w-[210mm] min-h-[297mm] print:min-h-0 print:h-[297mm] print:max-h-[297mm] print:overflow-hidden page-break-after-avoid bg-white print:shadow-none p-8 print:p-6 relative box-border text-[13px] leading-tight flex flex-col justify-between">
         
         <div>
@@ -252,7 +252,7 @@ export default function PrintInvoice() {
 
               {/* Calculations Footer */}
               <tr>
-                <td colSpan={2} rowSpan={4} className="border border-black p-2.5 text-left align-top text-[10px] leading-normal font-sans">
+                <td colSpan={2} rowSpan={4} className="border border-black p-2.5 text-left align-top text-[10px] leading-normal">
                   <div className="font-extrabold text-slate-800 border-b border-black pb-0.5 mb-1.5 uppercase tracking-wider text-[10px]">
                     Terms &amp; Conditions:
                   </div>

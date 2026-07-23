@@ -115,12 +115,12 @@ export default function PrintSticker() {
   }
 
   return (
-    <div className="bg-slate-100 min-h-screen print:min-h-0 print:h-auto print:bg-white text-black font-sans flex flex-col items-center py-8 print:py-0">
+    <div className="bg-slate-100 min-h-screen print:min-h-0 print:bg-white text-black font-sans flex flex-col items-center py-8 print:py-0">
       {/* Print styles */}
       <style>{`
         @page {
-          size: 4in 4in;
-          margin: 0 !important;
+          size: 3in 3in;
+          margin: 0;
         }
         @media print {
           html, body {
@@ -128,9 +128,8 @@ export default function PrintSticker() {
             color: black !important;
             padding: 0 !important;
             margin: 0 !important;
-            height: auto !important;
-            min-height: 0 !important;
-            overflow: visible !important;
+            width: 3in !important;
+            min-height: 100vh !important;
           }
           .page-break {
             page-break-after: always !important;
@@ -140,93 +139,116 @@ export default function PrintSticker() {
             border: none !important;
             box-shadow: none !important;
             margin: 0 !important;
-            width: 4in !important;
-            height: 4in !important;
-            max-width: 4in !important;
-            max-height: 4in !important;
+            width: 3in !important;
+            height: 3in !important;
             border-radius: 0 !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-            page-break-inside: avoid !important;
             box-sizing: border-box !important;
-            padding: 0.25in !important;
+            padding: 0.15in !important;
+            overflow: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+            page-break-inside: avoid !important;
           }
         }
       `}</style>
       {stickers.map((sticker, idx) => (
         <div 
           key={idx} 
-          className={`sticker-card w-[4in] h-[4in] print:w-[4in] print:h-[4in] bg-white border border-slate-300 shadow-sm rounded mb-4 print:mb-0 p-4 flex flex-col justify-between box-border overflow-hidden ${
+          className={`sticker-card w-[3in] h-[3in] bg-white border border-slate-300 shadow-sm rounded-lg mb-4 print:mb-0 p-3 flex flex-col box-border overflow-hidden ${
             idx < stickers.length - 1 ? 'page-break' : ''
           }`}
         >
-          {/* Header */}
-          <div className="flex justify-between items-start border-b border-dashed border-slate-300 pb-2 mb-2 shrink-0">
-            <div>
-              <h1 className="text-base font-black tracking-wider text-black leading-tight uppercase">MK GROUP</h1>
-              <p className="text-[9px] font-bold text-slate-500 leading-tight">
-                Savar, Dhaka | 01969317241
-              </p>
+          {/* Header Section with Logo */}
+          <div className="flex justify-between items-center border-b border-black pb-1.5 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <div className="w-8 h-8 rounded-full border border-black flex items-center justify-center overflow-hidden bg-white shrink-0">
+                <img 
+                  src="https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png" 
+                  alt="MK Group Logo" 
+                  className="w-full h-full object-contain p-0.5" 
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="text-left">
+                <h1 className="text-[12px] font-black tracking-wider text-black leading-none uppercase">MK GROUP</h1>
+                <p className="text-[7px] font-bold text-slate-500 leading-none mt-0.5">Savar, Dhaka | 01969317241</p>
+              </div>
             </div>
-            <div className="text-right">
+            <div className="shrink-0">
               {sticker.delivery_type === 'point' ? (
-                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded text-[10px] font-black uppercase inline-block">
-                  Point
+                <span className="bg-black text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider inline-block">
+                  POINT
                 </span>
               ) : (
-                <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded text-[10px] font-black uppercase inline-block">
-                  Home
+                <span className="bg-black text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider inline-block">
+                  HOME
                 </span>
               )}
             </div>
           </div>
 
-          {/* Consignee Info */}
-          <div className="flex-1 space-y-1.5 text-xs text-left overflow-hidden flex flex-col justify-center">
-            <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">Name:</span>
-              <span className="font-black text-black leading-tight text-sm truncate">{sticker.customer_name}</span>
+          {/* Body Section (No big gaps) */}
+          <div className="flex-1 flex flex-col gap-1.5 mt-2 overflow-hidden text-left">
+            {/* Consignee Name & Phone */}
+            <div className="flex flex-col gap-0.5 shrink-0 text-[10px] leading-tight">
+              <div className="flex items-start gap-1">
+                <span className="font-bold text-slate-500 uppercase w-12 shrink-0">Name:</span>
+                <span className="font-black text-black">{sticker.customer_name}</span>
+              </div>
+              <div className="flex items-start gap-1">
+                <span className="font-bold text-slate-500 uppercase w-12 shrink-0">Phone:</span>
+                <span className="font-black text-black font-mono">{sticker.customer_phone}</span>
+              </div>
             </div>
-            <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">Phone:</span>
-              <span className="font-black text-black font-mono leading-tight text-sm">{sticker.customer_phone}</span>
-            </div>
-            <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">Address:</span>
-              <span className="font-bold text-slate-800 leading-snug line-clamp-2 text-xs">
+
+            {/* Consignee Address */}
+            <div className="flex items-start gap-1 text-[10px] leading-tight">
+              <span className="font-bold text-slate-500 uppercase w-12 shrink-0">Address:</span>
+              <span className="font-bold text-slate-800 break-words">
                 {sticker.recipient_address || (sticker as any).customer_address || (sticker as any).address || 'ঠিকানা পাওয়া যায়নি'}
               </span>
             </div>
-            <div className="flex items-start gap-1 pt-1 mt-1 border-t border-slate-100">
-              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">Booking ID:</span>
-              <span className="font-bold text-indigo-900 font-mono bg-indigo-50 px-1.5 py-0.5 rounded leading-none text-xs">
-                {sticker.consignment_id || sticker.tracking_code || 'N/A'}
-              </span>
-            </div>
-            <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[9px] uppercase w-14 shrink-0 pt-0.5">COD Cash:</span>
-              <span className="font-black text-emerald-800 text-base leading-tight">৳{sticker.amount}</span>
+            
+            {/* Spacer to push barcode to bottom slightly if there's room, but not an excessive gap */}
+            <div className="flex-1"></div>
+
+            {/* COD Cash & Booking ID Row */}
+            <div className="flex justify-between items-end border-t border-black pt-1.5 shrink-0">
+              <div>
+                <span className="text-[7px] font-bold text-slate-500 uppercase leading-none block">Booking ID</span>
+                <span className="font-black text-[11px] font-mono text-black leading-none block mt-0.5">
+                  {sticker.consignment_id || sticker.tracking_code || 'N/A'}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-[7px] font-bold text-slate-500 uppercase leading-none block">COD Amount</span>
+                <span className="font-black text-[14px] text-black leading-none block mt-0.5">
+                  ৳{sticker.amount}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Barcode & Tracking */}
-          <div className="mt-2 pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-center shrink-0 h-[70px] overflow-hidden">
+          {/* Barcode & Scanning Block */}
+          <div className="mt-1 pt-1 border-t border-dashed border-slate-300 flex flex-col items-center justify-center shrink-0 h-[45px] overflow-hidden">
             {sticker.consignment_id || sticker.tracking_code ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full scale-95 origin-bottom">
                 <Barcode 
                   value={String(sticker.consignment_id || sticker.tracking_code)} 
-                  height={38} 
-                  width={1.4} 
-                  fontSize={11} 
+                  height={28} 
+                  width={1.2} 
+                  fontSize={9} 
                   margin={0} 
                   displayValue={true} 
                 />
               </div>
             ) : (
-              <div className="text-[10px] text-slate-400 font-bold mb-1">No Booking ID</div>
+              <div className="text-[10px] text-slate-400 font-bold">No Booking ID</div>
             )}
             {sticker.invoice && (
-              <div className="text-[8px] font-bold text-slate-400 mt-1 font-mono leading-none">
+              <div className="text-[7px] font-bold text-slate-400 mt-0.5 font-mono leading-none">
                 Order Invoice: {sticker.invoice}
               </div>
             )}

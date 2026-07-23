@@ -104,11 +104,8 @@ export default function PrintInvoice() {
     ? orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
     : parsedTotal;
 
-  // In the user's system, we don't have Courier / Condition charge explicitly saved per order, 
-  // but total = subtotal + courier + condition.
-  // We can calculate condition as Math.round(subtotal * 0.01).
-  const conditionCharge = Math.round(subtotal * 0.01);
-  const courierCharge = parsedTotal > subtotal ? (parsedTotal - subtotal - conditionCharge) : 0;
+  // The difference between total and subtotal is the delivery/courier charge.
+  const deliveryCharge = parsedTotal > subtotal ? (parsedTotal - subtotal) : 0;
   
   const formatInvoiceId = (id: string) => {
     if (!id) return '';
@@ -252,7 +249,7 @@ export default function PrintInvoice() {
 
               {/* Calculations Footer */}
               <tr>
-                <td colSpan={2} rowSpan={4} className="border border-black p-2.5 text-left align-top text-[10px] leading-normal">
+                <td colSpan={2} rowSpan={3} className="border border-black p-2.5 text-left align-top text-[10px] leading-normal">
                   <div className="font-extrabold text-slate-800 border-b border-black pb-0.5 mb-1.5 uppercase tracking-wider text-[10px]">
                     Terms &amp; Conditions:
                   </div>
@@ -261,15 +258,11 @@ export default function PrintInvoice() {
                     <li>আমাদের উপর আস্থা রাখার জন্য ধন্যবাদ।</li>
                   </ul>
                 </td>
-                <td colSpan={3} className="border border-black px-2 py-1.5 text-right bg-gray-50">Courier Charge:</td>
-                <td className="border border-black px-2 py-1.5">{Math.max(0, courierCharge)} Taka</td>
+                <td colSpan={3} className="border border-black px-2 py-1.5 text-right bg-gray-50">Delivery Charge:</td>
+                <td className="border border-black px-2 py-1.5">{deliveryCharge} Taka</td>
               </tr>
               <tr>
-                <td colSpan={3} className="border border-black px-2 py-1.5 text-right bg-gray-50">Condition charge:</td>
-                <td className="border border-black px-2 py-1.5">{conditionCharge} Taka</td>
-              </tr>
-              <tr>
-                <td colSpan={3} className="border border-black px-2 py-1.5 text-center bg-gray-100 uppercase tracking-widest font-black">Total</td>
+                <td colSpan={3} className="border border-black px-2 py-1.5 text-center bg-gray-100 uppercase tracking-widest font-black">Subtotal</td>
                 <td className="border border-black px-2 py-1.5 bg-gray-100 font-black">{subtotal} Taka</td>
               </tr>
               <tr>

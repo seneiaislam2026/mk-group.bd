@@ -3114,6 +3114,35 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </div>
 
               <div className="p-4 md:p-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                {/* Inventory Summary Cards */}
+                {(() => {
+                  const totalInventoryPairs = products.reduce((acc, p) => acc + (p.stock || 0), 0);
+                  const totalInventoryBoxes = Math.floor(totalInventoryPairs / 24);
+                  const remainingPairs = totalInventoryPairs % 24;
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 flex items-center gap-4">
+                        <div className="w-12 h-12 bg-emerald-200 text-emerald-700 rounded-xl flex items-center justify-center shrink-0">
+                          <Package size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-0.5">মোট জুতো</p>
+                          <h4 className="text-xl font-black text-emerald-900">{totalInventoryPairs} জোড়া</h4>
+                        </div>
+                      </div>
+                      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-200 text-indigo-700 rounded-xl flex items-center justify-center shrink-0">
+                          <Boxes size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5">মোট বক্স</p>
+                          <h4 className="text-xl font-black text-indigo-900">{totalInventoryBoxes} বক্স {remainingPairs > 0 && `, ${remainingPairs} জোড়া`}</h4>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* কুইক পণ্য ও মূল্য সংযোজন (Quick Product & Price Entry) */}
                 <div className="border border-slate-100 rounded-2xl p-4 md:p-5 bg-slate-50/50 mb-6 font-bold text-xs select-none shadow-inner">
                   <div className="flex items-center gap-2 mb-4">

@@ -1,17 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import Barcode from 'react-barcode';
-import { useUI } from '../context/UIContext';
+import { Tag, CalendarDays } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 import { Product } from '../types';
 
 export default function PrintProductBarcodes() {
-  const { products } = useUI();
+  const { products } = useCart();
   const [stockProducts, setStockProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasPrinted = useRef(false);
 
   useEffect(() => {
     // Filter products that are in stock
-    const availableProducts = products.filter(p => Number(p.stock || 0) > 0);
+    const searchParams = new URLSearchParams(window.location.search);
+    const specificArticle = searchParams.get('article');
+    
+    let availableProducts = products.filter(p => Number(p.stock || 0) > 0);
+    
+    if (specificArticle) {
+       availableProducts = availableProducts.filter(p => p.article === specificArticle || String(p.id) === specificArticle);
+    }
+    
     setStockProducts(availableProducts);
     setIsLoading(false);
   }, [products]);
@@ -39,9 +48,9 @@ export default function PrintProductBarcodes() {
   if (stockProducts.length === 0) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="text-red-500 font-black text-lg mb-2">কোনো স্টক পাওয়া যায়নি!</div>
+        <div className="text-red-500 font-black text-lg mb-2">কোনো প্রোডাক্ট পাওয়া যায়নি!</div>
         <p className="text-sm text-slate-500 font-bold font-sans">
-          ইনভেন্টরিতে স্টকে কোনো পণ্য নেই।
+          ইনভেন্টরিতে কোনো পণ্য নেই অথবা সার্চ করা আর্টিকেল স্টকে নেই।
         </p>
         <button 
           onClick={() => window.close()} 
@@ -53,20 +62,26 @@ export default function PrintProductBarcodes() {
     );
   }
 
+  const today = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+
   return (
-    <div className="bg-slate-100 min-h-screen print:bg-white text-black font-sans flex flex-col items-center py-8 print:py-0">
+    <div className="bg-slate-100 min-h-screen print:bg-white text-black font-sans flex flex-col items-center py-8 print:py-0 w-full overflow-y-auto print:block">
       {/* Print styles */}
       <style>{`
         @page {
-          size: 3in 3in;
+          size: 4in 4in;
           margin: 0;
         }
         @media print {
-          body {
+          body, html {
             background: white !important;
             color: black !important;
             padding: 0 !important;
             margin: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
           }
           .page-break {
             page-break-after: always;
@@ -76,11 +91,17 @@ export default function PrintProductBarcodes() {
             border: none !important;
             box-shadow: none !important;
             margin: 0 !important;
-            width: 3in !important;
-            height: 3in !important;
+            width: 100% !important;
+            height: 100% !important;
+            padding: 0.25in !important;
             border-radius: 0 !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            box-sizing: border-box !important;
           }
         }
       `}</style>
@@ -88,67 +109,59 @@ export default function PrintProductBarcodes() {
       {stockProducts.map((product, idx) => (
         <div 
           key={idx} 
-          className={`sticker-card w-[3in] h-[3in] bg-white border border-slate-300 shadow-sm rounded mb-4 print:mb-0 p-3 flex flex-col justify-between box-border overflow-hidden ${
-            idx < stockProducts.length - 1 ? 'page-break' : ''
-          }`}
+          className={`sticker-card w-[4in] h-[4in] bg-white border-0 rounded-none mb-4 print:mb-0 p-[0.25in] flex flex-col justify-between items-center box-border relative overflow-hidden ${idx < stockProducts.length - 1 ? "page-break" : ""}`}
         >
-          {/* Header */}
-          <div className="flex justify-between items-start border-b border-dashed border-slate-300 pb-2 mb-2 shrink-0">
-            <div>
-              <h1 className="text-sm font-black tracking-wider text-black leading-tight">MK GROUP</h1>
-              <p className="text-[7px] font-bold text-slate-500 leading-tight mt-0.5">
-                Savar, Dhaka | 01969317241
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="bg-[#2e7d32]/10 text-[#2e7d32] border border-[#2e7d32]/20 px-1.5 py-0.5 rounded text-[8px] font-black uppercase inline-block">
-                {product.category || 'PRODUCT'}
-              </span>
-            </div>
+          {/* Header MK GROUP */}
+          <div className="flex items-center w-full justify-center mt-[2pt]">
+             <h1 className="text-[16pt] font-black tracking-[0.2em] text-black uppercase m-0 leading-none">MK GROUP</h1>
           </div>
 
-          {/* Product Info */}
-          <div className="flex-1 space-y-1 text-[10px] text-left overflow-hidden">
-            <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[8px] uppercase w-10 shrink-0">Name:</span>
-              <span className="font-black text-black leading-tight line-clamp-2">{product.name}</span>
-            </div>
-            <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[8px] uppercase w-10 shrink-0">Price:</span>
-              <span className="font-black text-black leading-tight">
-                ৳{product.discountedPrice || product.originalPrice}
-                {product.discountedPrice && product.discountedPrice < product.originalPrice && (
-                  <span className="ml-1 text-[8px] line-through text-slate-400">৳{product.originalPrice}</span>
-                )}
-              </span>
-            </div>
-            <div className="flex items-start gap-1">
-              <span className="font-extrabold text-slate-500 text-[8px] uppercase w-10 shrink-0">Weight:</span>
-              <span className="font-bold text-slate-800 leading-tight">
-                {product.weight || 'N/A'}
-              </span>
-            </div>
+          {/* Product ID Pill */}
+          <div className="flex items-center w-full justify-center mt-[4pt]">
+             <div className="bg-black text-white font-black text-[14pt] px-[18pt] py-[4pt] rounded-full tracking-[0.15em] text-center leading-none">
+               {product.article || product.id}
+             </div>
+          </div>
+
+          {/* Price & Date Box */}
+          <div className="w-full border-[2pt] border-black rounded-[12pt] flex items-center h-[46pt] overflow-hidden my-[8pt]">
+             <div className="flex-1 flex items-center justify-center gap-[6pt] px-[8pt] h-full">
+               <Tag size={18} className="fill-transparent stroke-black stroke-[2.5]" />
+               <span className="font-extrabold text-[12pt] text-black leading-none whitespace-nowrap">
+                  Price: ৳{Math.round((product.discountedPrice || product.originalPrice) / (product.piecesPerBox || 24))}
+               </span>
+             </div>
+             <div className="w-[2pt] h-full bg-black shrink-0"></div>
+             <div className="flex-1 flex items-center justify-center gap-[6pt] px-[8pt] h-full">
+               <CalendarDays size={18} className="fill-transparent stroke-black stroke-[2.5]" />
+               <span className="font-extrabold text-[11pt] text-black uppercase tracking-wider leading-none whitespace-nowrap">
+                  ISS: {today}
+               </span>
+             </div>
           </div>
 
           {/* Barcode */}
-          <div className="mt-2 pt-2 border-t border-dashed border-slate-300 flex flex-col items-center justify-end shrink-0 h-[45px] overflow-hidden">
+          <div className="flex flex-col items-center justify-center w-full flex-1 min-h-0 overflow-hidden mt-[2pt]">
             {product.article || product.id ? (
-              <div className="scale-[0.85] origin-bottom flex items-end justify-center h-full">
+              <div className="scale-[1] origin-center flex items-center justify-center h-full">
                 <Barcode 
                   value={String(product.article || product.id)} 
-                  height={32} 
-                  width={1.4} 
-                  fontSize={11} 
+                  height={50} 
+                  width={1.5} 
                   margin={0} 
-                  displayValue={true} 
+                  displayValue={false} 
                 />
               </div>
             ) : (
-              <div className="text-[10px] text-slate-400 font-bold mb-1">No Barcode ID</div>
+              <div className="text-[10pt] text-slate-400 font-bold mb-[4pt]">No Barcode ID</div>
             )}
-            <div className="text-[7px] font-bold text-slate-400 mt-1 font-mono leading-none">
-              SKU: {product.article || product.id}
-            </div>
+          </div>
+
+          {/* Footer Text */}
+          <div className="flex items-center w-full justify-center mt-[4pt]">
+             <div className="font-black text-[18pt] text-black tracking-[0.15em] leading-none">
+               {product.article || product.id}
+             </div>
           </div>
         </div>
       ))}

@@ -115,11 +115,11 @@ export default function PrintSticker() {
   }
 
   return (
-    <div className="bg-slate-100 min-h-screen print:min-h-0 print:bg-white text-black font-sans flex flex-col items-center py-8 print:py-0">
+    <div className="bg-slate-100 min-h-screen print:min-h-0 print:h-auto print:bg-white text-black font-sans flex flex-col items-center py-8 print:py-0 print:block print:w-full print:m-0 print:p-0">
       {/* Print styles */}
       <style>{`
         @page {
-          size: 3in 3in;
+          size: 4in 3in;
           margin: 0;
         }
         @media print {
@@ -128,18 +128,18 @@ export default function PrintSticker() {
             color: black !important;
             padding: 0 !important;
             margin: 0 !important;
-            width: 3in !important;
-            min-height: 100vh !important;
+            width: 4in !important;
+            height: 3in !important;
+            overflow: hidden !important;
           }
           .page-break {
             page-break-after: always !important;
-            break-after: page !important;
           }
           .sticker-card {
             border: none !important;
             box-shadow: none !important;
             margin: 0 !important;
-            width: 3in !important;
+            width: 4in !important;
             height: 3in !important;
             border-radius: 0 !important;
             print-color-adjust: exact;
@@ -149,14 +149,13 @@ export default function PrintSticker() {
             overflow: hidden !important;
             display: flex !important;
             flex-direction: column !important;
-            page-break-inside: avoid !important;
           }
         }
       `}</style>
       {stickers.map((sticker, idx) => (
         <div 
           key={idx} 
-          className={`sticker-card w-[3in] h-[3in] bg-white border border-slate-300 shadow-sm rounded-lg mb-4 print:mb-0 p-3 flex flex-col box-border overflow-hidden ${
+          className={`sticker-card w-[4in] h-[3in] bg-white border border-slate-300 shadow-sm rounded-lg mb-4 print:mb-0 p-3 flex flex-col box-border overflow-hidden ${
             idx < stickers.length - 1 ? 'page-break' : ''
           }`}
         >

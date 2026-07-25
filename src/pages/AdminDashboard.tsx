@@ -139,6 +139,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   // Search filter inputs
   const [productSearch, setProductSearch] = useState('');
+  const [inventorySearch, setInventorySearch] = useState('');
   const [orderSearch, setOrderSearch] = useState('');
   const [orderFilterDate, setOrderFilterDate] = useState('');
 
@@ -2865,7 +2866,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               
               <div className="flex-1 overflow-y-auto bg-slate-50/50 p-2 md:p-4">
                 {/* Real-time Courier Metrics */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3 select-none">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 select-none">
                   <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between">
                     <span className="text-[10px] md:text-xs text-slate-400 font-extrabold uppercase tracking-wider">মোট বুকিং (Total Booked)</span>
                     <div className="flex items-baseline gap-1.5 mt-2">
@@ -2880,11 +2881,18 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       <span className="text-xs md:text-sm text-emerald-700 font-bold">টি পার্সেল</span>
                     </div>
                   </div>
-                  <div className="bg-amber-50/30 border border-amber-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between col-span-2 md:col-span-1">
-                    <span className="text-[10px] md:text-xs text-amber-700 font-extrabold uppercase tracking-wider">চলমান/পেন্ডিং (Pending)</span>
+                  <div className="bg-amber-50/30 border border-amber-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between">
+                    <span className="text-[10px] md:text-xs text-amber-700 font-extrabold uppercase tracking-wider">চলমান (Pending)</span>
                     <div className="flex items-baseline gap-1.5 mt-2">
-                      <span className="text-xl md:text-2xl font-black text-amber-900">{courierHistory.filter(c => c && c.status !== 'delivered' && c.status !== 'cancelled').length}</span>
+                      <span className="text-xl md:text-2xl font-black text-amber-900">{courierHistory.filter(c => c && c.status !== 'delivered' && c.status !== 'cancelled' && !c.status?.includes('return')).length}</span>
                       <span className="text-xs md:text-sm text-amber-800 font-bold">টি পার্সেল</span>
+                    </div>
+                  </div>
+                  <div className="bg-rose-50/30 border border-rose-100 rounded-2xl p-4 md:p-5 shadow-sm flex flex-col justify-between">
+                    <span className="text-[10px] md:text-xs text-rose-700 font-extrabold uppercase tracking-wider">রিটার্ন (Returned)</span>
+                    <div className="flex items-baseline gap-1.5 mt-2">
+                      <span className="text-xl md:text-2xl font-black text-rose-900">{courierHistory.filter(c => c && c.status?.includes('return')).length}</span>
+                      <span className="text-xs md:text-sm text-rose-800 font-bold">টি পার্সেল</span>
                     </div>
                   </div>
                 </div>
@@ -2993,6 +3001,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               ) : delivery.status === 'cancelled' ? (
                                 <span className="inline-flex items-center gap-1.5 bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
                                   <XCircle size={14} className="text-rose-600 shrink-0" /> Cancelled
+                                </span>
+                              ) : delivery.status?.includes('return') ? (
+                                <span className="inline-flex items-center gap-1.5 bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                  <AlertCircle size={14} className="text-rose-600 shrink-0" /> Returned
                                 </span>
                               ) : delivery.status === 'hold' ? (
                                 <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider">
@@ -3297,7 +3309,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
                 <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-6 shadow-sm relative overflow-hidden mt-6">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
-                  <div className="flex justify-between items-center mb-6 relative z-10">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 relative z-10">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-[#2e7d32] flex items-center justify-center text-white shadow-md shadow-emerald-200">
                         <Building size={18} strokeWidth={2.5} />
@@ -3307,11 +3319,31 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         <p className="text-[10px] font-bold text-slate-400 mt-0.5">লাইভ ইনভেন্টরি মনিটরিং</p>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <div className="relative flex-1 sm:flex-none">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                          type="text"
+                          placeholder="আর্টিকেল সার্চ করুন..."
+                          value={inventorySearch}
+                          onChange={(e) => setInventorySearch(e.target.value)}
+                          className="pl-9 pr-4 py-2 w-full sm:w-64 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#2e7d32] text-xs font-bold text-slate-800"
+                        />
+                      </div>
+                      <button
+                        onClick={() => window.open('/print-product-barcodes', '_blank')}
+                        className="p-2 sm:px-4 sm:py-2 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shrink-0"
+                        title="প্রোডাক্ট বারকোড প্রিন্ট করুন"
+                      >
+                        <Printer size={16} />
+                        <span className="hidden sm:inline">বারকোড প্রিন্ট</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Desktop Table view (Hidden on mobile) */}
                   <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs md:text-sm font-bold">
+                    <table className="w-full text-left border-collapse text-xs md:text-sm font-bold min-w-[800px]">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase text-[11px] select-none text-left">
                           <th className="p-4 font-bold text-center w-16">সিরিয়াল</th>
@@ -3322,7 +3354,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700">
-                        {products.map((product, index) => {
+                        {products.filter(p => p.article?.toLowerCase().includes(inventorySearch.toLowerCase()) || p.name.toLowerCase().includes(inventorySearch.toLowerCase())).map((product, index) => {
                           const totalStock = product.stock || 0;
                           const boxes = Math.floor(totalStock / 24);
                           const pairs = totalStock % 24;
@@ -3426,7 +3458,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
                   {/* Mobile Grid view (No horizontal scrolling!) */}
                   <div className="block md:hidden space-y-3">
-                    {products.map((product, index) => {
+                    {products.filter(p => p.article?.toLowerCase().includes(inventorySearch.toLowerCase()) || p.name.toLowerCase().includes(inventorySearch.toLowerCase())).map((product, index) => {
                       const totalStock = product.stock || 0;
                       const boxes = Math.floor(totalStock / 24);
                       const pairs = totalStock % 24;
@@ -3558,7 +3590,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 ) : (
                   <>
                   <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs md:text-sm font-bold">
+                    <table className="w-full text-left border-collapse text-xs md:text-sm font-bold min-w-[1000px]">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase text-[11px] select-none text-left">
                           <th className="p-4 font-bold text-center">সিরিয়াল</th>
@@ -3777,16 +3809,16 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
               {/* Desktop view: wide table */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs md:text-sm font-bold min-w-[850px]">
+                <table className="w-full text-left border-collapse text-xs md:text-sm font-bold min-w-[1200px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase text-[10px] tracking-wider select-none text-left">
-                      <th className="p-4 font-extrabold">অর্ডার আইডি</th>
-                      <th className="p-4 font-extrabold">গ্রাহকের বিবরণ</th>
-                      <th className="p-4 font-extrabold">ডেলিভারি ঠিকানা</th>
-                      <th className="p-4 font-extrabold">ক্রয়কৃত আইটেম</th>
-                      <th className="p-4 font-extrabold">মূল্য</th>
-                      <th className="p-4 font-extrabold text-center font-sans uppercase">স্ট্যাটাস</th>
-                      <th className="p-4 font-extrabold text-center">অ্যাকশন</th>
+                      <th className="p-4 font-extrabold w-[100px]">অর্ডার আইডি</th>
+                      <th className="p-4 font-extrabold w-[200px]">গ্রাহকের বিবরণ</th>
+                      <th className="p-4 font-extrabold w-[250px]">ডেলিভারি ঠিকানা</th>
+                      <th className="p-4 font-extrabold w-[300px]">ক্রয়কৃত আইটেম</th>
+                      <th className="p-4 font-extrabold w-[100px]">মূল্য</th>
+                      <th className="p-4 font-extrabold text-center font-sans uppercase w-[150px]">স্ট্যাটাস</th>
+                      <th className="p-4 font-extrabold text-center w-[180px]">অ্যাকশন</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -3797,8 +3829,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     ) : (
                       filteredOrdersList.map((order) => (
                         <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-4 text-slate-500 font-mono text-xs">#{order.id}</td>
-                          <td className="p-4">
+                          <td className="p-4 text-slate-500 font-mono text-xs align-top">#{order.id}</td>
+                          <td className="p-4 align-top">
                             {order.status === 'Pending' ? (
                               <button 
                                 onClick={() => {
@@ -3822,16 +3854,16 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             )}
                             <div className="text-[10px] text-slate-400 font-normal tracking-wide mt-1.5">{order.phone}</div>
                           </td>
-                          <td className="p-4">
-                            <p className="truncate max-w-[150px] text-slate-500 font-normal text-xs" title={order.address}>{order.address}</p>
+                          <td className="p-4 align-top">
+                            <p className="text-slate-500 font-normal text-xs whitespace-pre-wrap break-words">{order.address}</p>
                           </td>
-                          <td className="p-4">
-                            <p className="line-clamp-2 max-w-[200px] text-slate-600 font-medium text-xs">
+                          <td className="p-4 align-top">
+                            <p className="text-slate-600 font-medium text-xs whitespace-pre-wrap break-words">
                               {(order.items || []).map(it => `${it.name} (${it.quantity}x)`).join(', ')}
                             </p>
                           </td>
-                          <td className="p-4 font-black text-slate-900 text-xs">৳{order.total}</td>
-                          <td className="p-4 text-center select-none">
+                          <td className="p-4 font-black text-slate-900 text-xs align-top">৳{order.total}</td>
+                          <td className="p-4 text-center select-none align-top">
                             <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
                               order.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
                               order.status === 'Shipped' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
@@ -3842,8 +3874,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               {order.status === 'Completed' ? 'ডেলিভারি সম্পন্ন' : order.status === 'Cancelled' ? 'বাতিল' : order.status === 'Shipped' ? 'ডেলিভারি পার্টনারের কাছে হস্তান্তরিত' : order.status === 'Confirmed' ? 'পণ্য প্রস্তুত করা হচ্ছে' : 'পেন্ডিং'}
                             </span>
                           </td>
-                          <td className="p-4 text-center select-none">
-                            <div className="flex items-center justify-center gap-1.5 font-bold">
+                          <td className="p-4 text-center select-none align-top">
+                            <div className="flex items-center justify-center gap-1.5 font-bold flex-wrap">
                               <button 
                                 onClick={() => setSelectedOrder(order)}
                                 className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded text-[10px] font-extrabold transition-colors border border-blue-100"
@@ -5101,7 +5133,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 
                 {/* Desktop View */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs md:text-sm font-bold">
+                  <table className="w-full text-left border-collapse text-xs md:text-sm font-bold min-w-[800px]">
                     <thead>
                       <tr className="bg-slate-50/60 border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400">
                         <th className="p-4">গ্রাহক</th>
@@ -6320,6 +6352,56 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         } else {
                           setManualSelectedProductId('');
                           setManualSelectedPrice('');
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const qty = Number(manualSelectedQuantity) || 6;
+                          let finalId = manualSelectedProductId;
+                          let finalName = manualArticleSearch;
+                          let finalPrice = Number(manualSelectedPrice) || 0;
+                          
+                          if (manualSelectedProductId) {
+                              const product = products.find(p => p.id === manualSelectedProductId);
+                              if (product) {
+                                  finalName = product.name;
+                                  if (manualSelectedPrice === '') {
+                                      finalPrice = Math.round((product.discountedPrice || product.originalPrice) / ((product as any).piecesPerBox || 24));
+                                      if (!finalPrice) {
+                                          alert('এই পণ্যের মূল্য ডাটাবেজে উল্লেখ নেই। দয়া করে একটি কাস্টম মূল্য লিখুন।');
+                                          return;
+                                      }
+                                  }
+                              }
+                          } else {
+                              if (!manualArticleSearch.trim()) return;
+                              if (manualSelectedPrice === '') {
+                                  alert('দয়া করে এই কাস্টম পণ্যের মূল্য লিখুন।');
+                                  return;
+                              }
+                              finalId = 'custom-' + Date.now();
+                          }
+                          
+                          const existingIndex = manualOrderItems.findIndex(item => item.id === finalId);
+                          if (existingIndex > -1) {
+                            const updated = [...manualOrderItems];
+                            updated[existingIndex].quantity += qty;
+                            if (manualSelectedPrice !== '') updated[existingIndex].price = finalPrice;
+                            setManualOrderItems(updated);
+                          } else {
+                            setManualOrderItems(prev => [...prev, {
+                              id: finalId,
+                              name: finalName,
+                              quantity: qty,
+                              price: finalPrice
+                            }]);
+                          }
+                          
+                          setManualArticleSearch('');
+                          setManualSelectedProductId('');
+                          setManualSelectedPrice('');
+                          setManualSelectedQuantity('6');
                         }
                       }}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold outline-none focus:border-[#2e7d32] bg-white"
@@ -7742,12 +7824,21 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 </h3>
                 <p className="text-xs font-bold text-slate-500 mt-0.5">{articleDetailsProduct.name || 'পণ্যের নাম নেই'}</p>
               </div>
-              <button 
-                onClick={() => setArticleDetailsProduct(null)}
-                className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-500 rounded-full hover:bg-slate-100 transition-colors"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.open(`/print-product-barcodes?article=${encodeURIComponent(articleDetailsProduct.article || articleDetailsProduct.id)}`, '_blank')}
+                  className="w-8 h-8 flex items-center justify-center bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors"
+                  title="বারকোড প্রিন্ট"
+                >
+                  <Printer size={14} />
+                </button>
+                <button 
+                  onClick={() => setArticleDetailsProduct(null)}
+                  className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-500 rounded-full hover:bg-slate-100 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             <div className="p-5 overflow-y-auto flex-1 space-y-6">
               <div className="flex gap-4">

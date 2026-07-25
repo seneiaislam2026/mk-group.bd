@@ -1,0 +1,211 @@
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col min-w-0">
+              
+              {/* Header inside Tab */}
+              <div className="p-4 md:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 select-none">
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-800">
+                    {lang === 'bn' ? 'অর্ডার সমূহ' : 'Orders List'} ({filteredOrdersList.length} {lang === 'bn' ? 'টি' : 'orders'})
+                  </h3>
+                  <p className="text-xs text-slate-400 font-bold mt-0.5">
+                    {lang === 'bn' ? 'স্টোরের সকল সক্রিয় ক্যাশ অন ডেলিভারি অর্ডার ট্র্যাক এবং বুকিং' : 'Track and book active cash on delivery store orders'}
+                  </p>
+                </div>
+                
+                <div className="flex flex-col lg:flex-row flex-wrap items-stretch lg:items-center gap-2.5 w-full lg:w-auto">
+                  <input 
+                    type="date"
+                    value={orderFilterDate}
+                    onChange={(e) => setOrderFilterDate(e.target.value)}
+                    className="w-full lg:w-auto px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-[#115e5a] cursor-pointer"
+                  />
+                  {/* Search bar inside block */}
+                  <div className="relative w-full lg:w-auto">
+                    <input 
+                      type="text" 
+                      placeholder={lang === 'bn' ? "নাম বা মোবাইল নম্বর খুঁজুন..." : "Search name or phone..."} 
+                      value={orderSearch}
+                      onChange={(e) => setOrderSearch(e.target.value)}
+                      className="w-full lg:w-56 pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-xs placeholder-slate-400 focus:outline-[#115e5a] font-bold" 
+                    />
+                    <Search size={14} className="absolute left-2.5 top-3 text-slate-400" />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <button 
+                      onClick={() => {
+                        setManualOrderCustomerName('');
+                        setManualOrderPhone('');
+                        setManualOrderAddress('');
+                        setManualOrderItems([]);
+                        setManualSelectedProductId('');
+                        setManualSelectedPrice('');
+                        setManualArticleSearch('');
+                        setManualSelectedQuantity(6);
+                        setIsManualOrderModalOpen(true);
+                      }}
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-amber-500 text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-amber-600 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                    >
+                      <PlusCircle size={14} /> {lang === 'bn' ? 'ম্যানুয়াল অর্ডার তৈরি' : 'Create Manual Order'}
+                    </button>
+
+                    <button 
+                      onClick={handleDownloadPDF}
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-blue-700 shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                    >
+                      <Download size={14} /> {lang === 'bn' ? 'ডাউনলোড (PDF/প্রিন্ট)' : 'Download (PDF)'}
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        const printDate = orderFilterDate || new Date().toISOString().split('T')[0];
+                        window.open(`/print-sticker?date=${printDate}`, '_blank');
+                      }}
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-1.5 bg-[#1b4332] text-white px-3 py-2 rounded-xl text-xs font-black hover:bg-[#112d22] shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                    >
+                      <Printer size={14} /> {lang === 'bn' ? `কুরিয়ার স্টিকার প্রিন্ট (${orderFilterDate || 'আজ'})` : `Print Stickers (${orderFilterDate || 'Today'})`}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop view: wide table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs md:text-sm font-bold min-w-[850px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase text-[10px] tracking-wider select-none text-left">
+                      <th className="p-4 font-extrabold">অর্ডার আইডি</th>
+                      <th className="p-4 font-extrabold">গ্রাহকের বিবরণ</th>
+                      <th className="p-4 font-extrabold">ডেলিভারি ঠিকানা</th>
+                      <th className="p-4 font-extrabold">ক্রয়কৃত আইটেম</th>
+                      <th className="p-4 font-extrabold">মূল্য</th>
+                      <th className="p-4 font-extrabold text-center font-sans uppercase">স্ট্যাটাস</th>
+                      <th className="p-4 font-extrabold text-center">অ্যাকশন</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {filteredOrdersList.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">কোন সক্রিয় অর্ডার খুঁজে পাওয়া যায়নি।</td>
+                      </tr>
+                    ) : (
+                      filteredOrdersList.map((order) => (
+                        <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 text-slate-500 font-mono text-xs">#{order.id}</td>
+                          <td className="p-4">
+                            {order.status === 'Pending' ? (
+                              <button 
+                                onClick={() => {
+                                  setEditingOrderId(order.id);
+                                  setManualOrderCustomerName(order.customerName);
+                                  setManualOrderPhone(order.phone);
+                                  setManualOrderAddress(order.address || '');
+                                  setManualOrderItems(order.items || []);
+                                  setManualDeliveryCharge(order.deliveryCharge || 0);
+                                  setManualConditionCharge(order.conditionCharge || 0);
+                                  setManualOrderIsDue(false);
+                                  setIsManualOrderModalOpen(true);
+                                }}
+                                className="font-extrabold text-[#2e7d32] hover:text-emerald-800 leading-none text-xs hover:underline text-left cursor-pointer transition-colors block"
+                                title="এডিট করতে ক্লিক করুন"
+                              >
+                                {order.customerName} (এডিট করুন 📝)
+                              </button>
+                            ) : (
+                              <div className="font-extrabold text-slate-900 leading-none text-xs">{order.customerName}</div>
+                            )}
+                            <div className="text-[10px] text-slate-400 font-normal tracking-wide mt-1.5">{order.phone}</div>
+                          </td>
+                          <td className="p-4">
+                            <p className="truncate max-w-[150px] text-slate-500 font-normal text-xs" title={order.address}>{order.address}</p>
+                          </td>
+                          <td className="p-4">
+                            <p className="line-clamp-2 max-w-[200px] text-slate-600 font-medium text-xs">
+                              {(order.items || []).map(it => `${it.name} (${it.quantity}x)`).join(', ')}
+                            </p>
+                          </td>
+                          <td className="p-4 font-black text-slate-900 text-xs">৳{order.total}</td>
+                          <td className="p-4 text-center select-none">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                              order.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                              order.status === 'Shipped' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                              order.status === 'Confirmed' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
+                              order.status === 'Cancelled' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                              'bg-amber-50 text-amber-600 border border-amber-100'
+                            }`}>
+                              {order.status === 'Completed' ? 'ডেলিভারি সম্পন্ন' : order.status === 'Cancelled' ? 'বাতিল' : order.status === 'Shipped' ? 'ডেলিভারি পার্টনারের কাছে হস্তান্তরিত' : order.status === 'Confirmed' ? 'পণ্য প্রস্তুত করা হচ্ছে' : 'পেন্ডিং'}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center select-none">
+                            <div className="flex items-center justify-center gap-1.5 font-bold">
+                              <button 
+                                onClick={() => setSelectedOrder(order)}
+                                className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded text-[10px] font-extrabold transition-colors border border-blue-100"
+                              >
+                                বিবরণ
+                              </button>
+                              
+                              {order.status !== 'Completed' && !courierHistory.some(c => c.invoice === order.id) && (
+                                <button 
+                                  onClick={() => setBookingOrder(order)}
+                                  className="text-white hover:bg-emerald-800 bg-[#1b4332] px-2 py-1 rounded text-[10px] font-extrabold flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                                  title="কুরিয়ার বুকিং করুন"
+                                >
+                                  <Truck size={10} /> বুকিং
+                                </button>
+                              )}
+
+                              <select 
+                                value={order.status}
+                                onChange={(e) => {
+                                const newStatus = e.target.value;
+                                updateOrderStatus(order.id, newStatus as any);
+                                if (newStatus === 'Completed') {
+                                    const txExists = transactions.some(t => t.note && t.note.includes(`ID: ${order.id}`));
+                                    if (!txExists && order.total > 0) {
+                                        const newTx = {
+                                            id: `t-del-man-${Date.now()}`,
+                                            type: 'income' as 'income' | 'expense',
+                                            category: 'পণ্য বিক্রি',
+                                            amount: order.total,
+                                            date: new Date().toISOString(),
+                                            note: `অর্ডার ডেলিভারি সম্পন্ন (ID: ${order.id}) - ${order.customerName}`
+                                        };
+                                        setTransactions(prev => [newTx, ...prev]);
+                                        addNotification('আয় আপডেট 💰', 'ডেলিভারি সম্পন্ন হওয়া অর্ডারের টাকা আয় অপশনে যুক্ত হয়েছে!');
+                                    }
+                                }
+                            }}
+                                className="bg-slate-50 border border-slate-200 text-slate-800 rounded px-1.5 py-1 text-[10px] cursor-pointer font-bold focus:outline-none"
+                              >
+                                <option value="Pending">পেন্ডিং (অর্ডার সফল হয়েছে)</option>
+                                <option value="Confirmed">পণ্য প্রস্তুত করা হচ্ছে</option>
+                                <option value="Shipped">ডেলিভারি পার্টনারের কাছে হস্তান্তরিত</option>
+                                <option value="Completed">ডেলিভারি সম্পন্ন</option>
+                                <option value="Cancelled">বাতিল</option>
+                              </select>
+                              
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); if(window.confirm('আপনি কি নিশ্চিত?')) deleteOrder(order.id); }}
+                                className="text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 p-1 rounded cursor-pointer"
+                                title="অর্ডার ডিলিট"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile responsive view: beautiful stacked card list - NO horizontal scroll, pristine margins */}
+              <div className="block md:hidden divide-y divide-slate-100">
+                {filteredOrdersList.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400 font-bold">কোন সক্রিয় অর্ডার খুঁজে পাওয়া যায়নি।</div>
+                ) : (
+                  filteredOrdersList.map((order) => (
+                    <div key={order.id} className="p-4 flex flex-col gap-3 hover:bg-slate-50/50 transition-colors">
+                      {/* Card Header: Order ID & Status with compact typography */}
+                      <div className="flex items-center justify-between">

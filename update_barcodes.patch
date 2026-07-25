@@ -1,0 +1,120 @@
+--- src/pages/PrintProductBarcodes.tsx
++++ src/pages/PrintProductBarcodes.tsx
+@@ -103,42 +103,42 @@
+       {stockProducts.map((product, idx) => (
+         <div 
+           key={idx} 
+-          className={`sticker-card w-[4in] h-[4in] bg-white border-[3px] border-black rounded-[1.5rem] mb-4 print:mb-0 p-[0.3in] flex flex-col justify-between items-center box-border relative ${
++          className={`sticker-card w-[4in] h-[4in] bg-white border-[3pt] border-black rounded-[24pt] mb-4 print:mb-0 p-[0.3in] flex flex-col justify-between items-center box-border relative ${
+             idx < stockProducts.length - 1 ? 'page-break' : ''
+           }`}
+         >
+           {/* Header MK GROUP */}
+-          <div className="flex items-center w-full justify-center gap-3">
++          <div className="flex items-center w-full justify-center gap-[8pt] mt-[4pt]">
+              <div className="flex-1 flex items-center justify-end">
+-               <div className="h-[2px] bg-black w-full max-w-[50px]"></div>
+-               <div className="w-2.5 h-2.5 rounded-full bg-black ml-[-2px]"></div>
++               <div className="h-[2pt] bg-black w-full max-w-[40pt]"></div>
++               <div className="w-[8pt] h-[8pt] rounded-full bg-black ml-[-2pt]"></div>
+              </div>
+-             <h1 className="text-2xl font-black tracking-[0.15em] text-black uppercase">MK GROUP</h1>
++             <h1 className="text-[18pt] font-black tracking-[0.15em] text-black uppercase m-0 leading-none">MK GROUP</h1>
+              <div className="flex-1 flex items-center justify-start">
+-               <div className="w-2.5 h-2.5 rounded-full bg-black mr-[-2px]"></div>
+-               <div className="h-[2px] bg-black w-full max-w-[50px]"></div>
++               <div className="w-[8pt] h-[8pt] rounded-full bg-black mr-[-2pt]"></div>
++               <div className="h-[2pt] bg-black w-full max-w-[40pt]"></div>
+              </div>
+           </div>
+ 
+           {/* Product ID Pill */}
+-          <div className="flex items-center w-full justify-center gap-3">
++          <div className="flex items-center w-full justify-center gap-[8pt]">
+              <div className="flex-1 flex items-center justify-end">
+-               <div className="h-[2px] bg-black w-full max-w-[40px]"></div>
++               <div className="h-[2pt] bg-black w-full max-w-[30pt]"></div>
+              </div>
+-             <div className="bg-black text-white font-black text-2xl px-6 py-1.5 rounded-full tracking-widest min-w-[160px] text-center">
++             <div className="bg-black text-white font-black text-[18pt] px-[20pt] py-[4pt] rounded-full tracking-[0.1em] text-center leading-none">
+                {product.article || product.id}
+              </div>
+              <div className="flex-1 flex items-center justify-start">
+-               <div className="h-[2px] bg-black w-full max-w-[40px]"></div>
++               <div className="h-[2pt] bg-black w-full max-w-[30pt]"></div>
+              </div>
+           </div>
+ 
+           {/* Price & Date Box */}
+-          <div className="w-full border-[2px] border-black rounded-xl flex items-center h-[3.5rem] overflow-hidden my-1">
+-             <div className="flex-1 flex items-center justify-center gap-2 px-2 h-full">
+-               <Tag size={24} className="fill-transparent stroke-black stroke-[2.5]" />
+-               <span className="font-extrabold text-[1.35rem] text-black">
++          <div className="w-full border-[2pt] border-black rounded-[12pt] flex items-center h-[40pt] overflow-hidden my-[4pt]">
++             <div className="flex-1 flex items-center justify-center gap-[6pt] px-[8pt] h-full">
++               <Tag size={20} className="fill-transparent stroke-black stroke-[2.5]" />
++               <span className="font-extrabold text-[14pt] text-black leading-none mt-[2pt]">
+                   Price: ৳{Math.round((product.discountedPrice || product.originalPrice) / (product.piecesPerBox || 24))}
+                </span>
+              </div>
+-             <div className="w-[2px] h-full bg-black shrink-0"></div>
+-             <div className="flex-1 flex items-center justify-center gap-2 px-2 h-full">
+-               <CalendarDays size={24} className="fill-transparent stroke-black stroke-[2.5]" />
+-               <span className="font-extrabold text-[1.35rem] text-black uppercase tracking-wide">
++             <div className="w-[2pt] h-full bg-black shrink-0"></div>
++             <div className="flex-1 flex items-center justify-center gap-[6pt] px-[8pt] h-full">
++               <CalendarDays size={20} className="fill-transparent stroke-black stroke-[2.5]" />
++               <span className="font-extrabold text-[12pt] text-black uppercase tracking-wide leading-none mt-[2pt]">
+                   ISS: {today}
+                </span>
+              </div>
+           </div>
+ 
+           {/* Divider with dot */}
+-          <div className="flex items-center w-full justify-center">
+-             <div className="h-[2px] bg-black flex-1"></div>
+-             <div className="w-2 h-2 rounded-full bg-black mx-1"></div>
+-             <div className="h-[2px] bg-black flex-1"></div>
++          <div className="flex items-center w-full justify-center">
++             <div className="h-[2pt] bg-black flex-1"></div>
++             <div className="w-[6pt] h-[6pt] rounded-full bg-black mx-[8pt]"></div>
++             <div className="h-[2pt] bg-black flex-1"></div>
+           </div>
+ 
+           {/* Barcode */}
+           <div className="flex flex-col items-center justify-center w-full flex-1 min-h-0 overflow-hidden">
+             {product.article || product.id ? (
+-              <div className="scale-[1.35] origin-center flex items-center justify-center h-full pt-4">
++              <div className="scale-[1.25] origin-center flex items-center justify-center h-full pt-[8pt]">
+                 <Barcode 
+                   value={String(product.article || product.id)} 
+-                  height={50} 
+-                  width={2} 
++                  height={55} 
++                  width={1.8} 
+                   margin={0} 
+                   displayValue={false} 
+                 />
+               </div>
+             ) : (
+-              <div className="text-sm text-slate-400 font-bold mb-1">No Barcode ID</div>
++              <div className="text-[10pt] text-slate-400 font-bold mb-[4pt]">No Barcode ID</div>
+             )}
+           </div>
+ 
+           {/* Footer Text */}
+-          <div className="flex items-center w-full justify-center gap-3">
++          <div className="flex items-center w-full justify-center gap-[8pt] mb-[4pt]">
+              <div className="flex-1 flex items-center justify-end">
+-               <div className="h-[2px] bg-black w-full max-w-[70px]"></div>
++               <div className="h-[2pt] bg-black w-full max-w-[60pt]"></div>
+              </div>
+-             <div className="font-black text-[1.75rem] text-black tracking-[0.1em] leading-none">
++             <div className="font-black text-[22pt] text-black tracking-[0.1em] leading-none">
+                {product.article || product.id}
+              </div>
+              <div className="flex-1 flex items-center justify-start">
+-               <div className="h-[2px] bg-black w-full max-w-[70px]"></div>
++               <div className="h-[2pt] bg-black w-full max-w-[60pt]"></div>
+              </div>
+           </div>

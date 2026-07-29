@@ -2934,18 +2934,14 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex flex-col gap-1.5 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              {delivery.status === 'pending' || delivery.status === 'in_review' ? (
-                                <button
-                                  onClick={() => setEditingCourierData(delivery)}
-                                  className="text-base font-extrabold text-slate-900 truncate hover:text-[#2e7d32] transition-colors cursor-pointer text-left flex items-center gap-1.5"
-                                  title="এডিট করতে ক্লিক করুন"
-                                >
-                                  {delivery.customer_name}
-                                  <Edit3 size={12} className="text-slate-400" />
-                                </button>
-                              ) : (
-                                <h3 className="text-base font-extrabold text-slate-900 truncate">{delivery.customer_name}</h3>
-                              )}
+                              <button
+                                onClick={() => setEditingCourierData(delivery)}
+                                className="text-base font-extrabold text-slate-900 truncate hover:text-[#2e7d32] transition-colors cursor-pointer text-left flex items-center gap-1.5"
+                                title="এডিট করতে বা নোট দিতে ক্লিক করুন"
+                              >
+                                {delivery.customer_name}
+                                <Edit3 size={12} className="text-slate-400" />
+                              </button>
                               {delivery.delivery_type === 'point' ? (
                                 <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider">Point</span>
                               ) : (
@@ -6895,7 +6891,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         recipient_phone: courierBookingData.recipient_phone,
                         recipient_address: courierBookingData.recipient_address,
                         cod_amount: courierBookingData.cod_amount,
-                        delivery_type: courierBookingData.delivery_type === 'home' ? 1 : 2,
+                        delivery_type: courierBookingData.delivery_type === 'home' ? 2 : 1,
                         note: `${courierBookingData.note ? courierBookingData.note + ' | ' : ''}Delivery: ${courierBookingData.delivery_type === 'home' ? 'Home Delivery' : 'Point Delivery'}`
                       })
                     });
@@ -7608,7 +7604,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               recipient_phone: bookingOrder.phone,
                               recipient_address: bookingOrder.address,
                               cod_amount: bookingOrder.total,
-                              delivery_type: deliveryType === 'home' ? 1 : 2,
+                              delivery_type: deliveryType === 'home' ? 2 : 1,
                               note: `Category: ${bookingCategory} | Delivery: ${deliveryType === 'home' ? 'Home Delivery' : 'Point Delivery'}`
                             })
                           });
@@ -7979,6 +7975,15 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-[#2e7d32] outline-none text-sm font-black text-[#115e5a]"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">কুরিয়ার ম্যানের জন্য নোট</label>
+                  <textarea
+                    value={editingCourierData.note || ''}
+                    onChange={(e) => setEditingCourierData({...editingCourierData, note: e.target.value})}
+                    placeholder="যেমন: দ্রুত ডেলিভারি দিন..."
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-[#2e7d32] outline-none text-sm font-bold text-slate-700 min-h-[60px]"
+                  />
+                </div>
               </div>
             </div>
             
@@ -8002,7 +8007,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       customer_address: editingCourierData.recipient_address || editingCourierData.customer_address || editingCourierData.address,
                       address: editingCourierData.recipient_address || editingCourierData.customer_address || editingCourierData.address,
                       amount: editingCourierData.amount || editingCourierData.cod_amount,
-                      cod_amount: editingCourierData.amount || editingCourierData.cod_amount
+                      cod_amount: editingCourierData.amount || editingCourierData.cod_amount,
+                      note: editingCourierData.note || ''
                     });
                     
                     addNotification('সাফল্য', 'পার্সেল ইনফরমেশন আপডেট করা হয়েছে।');

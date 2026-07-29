@@ -153,8 +153,9 @@ export default function StaffPortal() {
       return;
     }
 
+    const newDocRef = doc(staffCollection);
     const staff: Staff = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: newDocRef.id,
       employeeId: newStaff.employeeId,
       name: newStaff.name,
       mobile: newStaff.mobile,
@@ -164,7 +165,7 @@ export default function StaffPortal() {
     };
 
     try {
-      await setDoc(doc(staffCollection, staff.id), staff);
+      await setDoc(newDocRef, staff);
       setNewStaff({ name: '', mobile: '', designation: '', photo: '', employeeId: '' });
       setShowAddModal(false);
     } catch (err) {
@@ -192,15 +193,15 @@ export default function StaffPortal() {
         const updatedRecord = { ...record, status, timestamp: new Date().toISOString() };
         await setDoc(doc(attendanceCollection, record.id), updatedRecord);
       } else {
-        const recordId = Math.random().toString(36).substr(2, 9);
+        const newDocRef = doc(attendanceCollection);
         const newRecord: AttendanceRecord = {
-          id: recordId,
+          id: newDocRef.id,
           staffId,
           date: selectedDate,
           status,
           timestamp: new Date().toISOString()
         };
-        await setDoc(doc(attendanceCollection, recordId), newRecord);
+        await setDoc(newDocRef, newRecord);
       }
     } catch (err) {
       console.error('Error marking attendance:', err);

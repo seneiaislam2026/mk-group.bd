@@ -128,8 +128,8 @@ export default function PrintSticker() {
             color: black !important;
             padding: 0 !important;
             margin: 0 !important;
-            width: 4in !important;
-            height: 3in !important;
+            width: 100% !important;
+            height: 100% !important;
             overflow: hidden !important;
           }
           .page-break {
@@ -139,8 +139,9 @@ export default function PrintSticker() {
             border: none !important;
             box-shadow: none !important;
             margin: 0 !important;
-            width: 4in !important;
-            height: 3in !important;
+            width: 100% !important;
+            height: 100vh !important;
+            max-height: 3in !important;
             border-radius: 0 !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
@@ -149,6 +150,7 @@ export default function PrintSticker() {
             overflow: hidden !important;
             display: flex !important;
             flex-direction: column !important;
+            page-break-inside: avoid !important;
           }
         }
       `}</style>

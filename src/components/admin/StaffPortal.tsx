@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserCheck, Camera, Plus, Search, CheckCircle, XCircle, Clock, CalendarDays, Upload, X, ChevronLeft, ChevronRight, User, Trash2 } from 'lucide-react';
-import { db, staffCollection, attendanceCollection } from '../../lib/firebase';
-import { onSnapshot, setDoc, deleteDoc, doc } from 'firebase/firestore';
+import { UserCheck, Camera, Plus, Search, CheckCircle, XCircle, Clock, CalendarDays, Upload, X, ChevronLeft, ChevronRight, User, Trash2, Edit } from 'lucide-react';
+import { db, staffCollection, attendanceCollection, salaryCollection } from '../../lib/firebase';
+import { onSnapshot, setDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 
 interface Staff {
   id: string;
@@ -11,6 +11,7 @@ interface Staff {
   employeeId?: string;
   photo: string;
   joinDate: string;
+  basicSalary?: number;
 }
 
 interface AttendanceRecord {
@@ -21,15 +22,28 @@ interface AttendanceRecord {
   timestamp: string;
 }
 
+interface SalaryPayment {
+  id: string;
+  staffId: string;
+  amount: number;
+  date: string;
+  type: 'advance' | 'regular';
+  note: string;
+  timestamp: string;
+}
+
 export default function StaffPortal() {
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [salaryPayments, setSalaryPayments] = useState<SalaryPayment[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newStaff, setNewStaff] = useState({ name: '', mobile: '', designation: '', photo: '', employeeId: '' });
+  const [newStaff, setNewStaff] = useState<Partial<Staff>>({ id: '', name: '', mobile: '', designation: '', photo: '', employeeId: '', basicSalary: 0 });
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [viewingMonth, setViewingMonth] = useState(new Date());
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [newSalary, setNewSalary] = useState<Partial<SalaryPayment>>({ amount: 0, date: new Date().toISOString().split('T')[0], type: 'regular', note: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Real-time Firestore sync and LocalStorage migration for staff list and attendance
@@ -88,9 +102,19 @@ export default function StaffPortal() {
       setAttendance(records);
     });
 
+    const qSalary = query(salaryCollection, orderBy('timestamp', 'desc'));
+    const unsubSalary = onSnapshot(qSalary, (snapshot) => {
+      const records: SalaryPayment[] = [];
+      snapshot.forEach((doc) => {
+        records.push(doc.data() as SalaryPayment);
+      });
+      setSalaryPayments(records);
+    });
+
     return () => {
       unsubStaff();
       unsubAttendance();
+      unsubSalary();
     };
   }, []);
 
@@ -153,23 +177,25 @@ export default function StaffPortal() {
       return;
     }
 
-    const newDocRef = doc(staffCollection);
+    const docRef = newStaff.id ? doc(staffCollection, newStaff.id) : doc(staffCollection);
     const staff: Staff = {
-      id: newDocRef.id,
-      employeeId: newStaff.employeeId,
+      id: docRef.id,
+      employeeId: newStaff.employeeId || '',
       name: newStaff.name,
       mobile: newStaff.mobile,
       designation: newStaff.designation,
       photo: newStaff.photo || 'https://i.pravatar.cc/150?u=' + Math.random(),
-      joinDate: new Date().toISOString()
+      joinDate: newStaff.joinDate || new Date().toISOString(),
+      basicSalary: newStaff.basicSalary || 0
     };
 
     try {
-      await setDoc(newDocRef, staff);
-      setNewStaff({ name: '', mobile: '', designation: '', photo: '', employeeId: '' });
+      await setDoc(docRef, staff);
+      setNewStaff({ id: '', name: '', mobile: '', designation: '', photo: '', employeeId: '', basicSalary: 0 });
       setShowAddModal(false);
     } catch (err) {
-      console.error('Error adding staff:', err);
+      console.error('Error adding/updating staff:', err);
+      alert('Error saving staff: ' + (err as Error).message);
     }
   };
 
@@ -178,7 +204,33 @@ export default function StaffPortal() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setNewStaff(p => ({ ...p, photo: reader.result as string }));
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400;
+          const MAX_HEIGHT = 400;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          setNewStaff(p => ({ ...p, photo: dataUrl }));
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -214,6 +266,31 @@ export default function StaffPortal() {
   };
 
   const filteredStaff = staffList.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.mobile.includes(searchQuery));
+
+  const handleAddSalary = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStaff || !newSalary.amount) return;
+
+    const newDocRef = doc(salaryCollection);
+    const payment: SalaryPayment = {
+      id: newDocRef.id,
+      staffId: selectedStaff.id,
+      amount: Number(newSalary.amount),
+      date: newSalary.date || new Date().toISOString().split('T')[0],
+      type: newSalary.type as 'advance' | 'regular' || 'regular',
+      note: newSalary.note || '',
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      await setDoc(newDocRef, payment);
+      setNewSalary({ amount: 0, date: new Date().toISOString().split('T')[0], type: 'regular', note: '' });
+      setShowSalaryModal(false);
+    } catch (err) {
+      console.error('Error adding salary payment:', err);
+      alert('Error saving payment: ' + (err as Error).message);
+    }
+  };
 
   return (
     <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-6">
@@ -283,13 +360,26 @@ export default function StaffPortal() {
                       <p className="text-xs text-slate-600 mt-1">{staff.mobile}</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={(e) => handleDeleteStaff(staff.id, e)}
-                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                    title="স্টাফ মুছে ফেলুন"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNewStaff(staff);
+                        setShowAddModal(true);
+                      }}
+                      className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="এডিট করুন"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button 
+                      onClick={(e) => handleDeleteStaff(staff.id, e)}
+                      className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                      title="স্টাফ মুছে ফেলুন"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 pl-4">
@@ -336,14 +426,26 @@ export default function StaffPortal() {
       
       {selectedStaff && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white sm:rounded-2xl w-full min-h-screen sm:min-h-0 sm:max-w-3xl overflow-hidden shadow-2xl my-0 sm:my-8 flex flex-col">
+          <div className="bg-white sm:rounded-2xl w-full min-h-[100dvh] sm:min-h-0 sm:max-w-3xl overflow-hidden shadow-2xl my-0 sm:my-8 flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50 sticky top-0 z-10">
               <h3 className="font-black text-slate-800 flex items-center gap-2">
-                <User size={18} className="text-[#2e7d32]" /> স্টাফ প্রোফাইল ও হাজিরা রিপোর্ট
+                <User size={18} className="text-[#2e7d32]" /> স্টাফ প্রোফাইল ও হাজিরা
               </h3>
-              <button onClick={() => setSelectedStaff(null)} className="text-slate-400 hover:text-rose-500 transition-colors p-1 bg-white rounded-lg border border-slate-200">
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    setNewStaff(selectedStaff);
+                    setShowAddModal(true);
+                    setSelectedStaff(null);
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1.5"
+                >
+                  <Edit size={14} /> এডিট
+                </button>
+                <button onClick={() => setSelectedStaff(null)} className="text-slate-400 hover:text-rose-500 transition-colors p-1 bg-white rounded-lg border border-slate-200">
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             
             <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
@@ -355,6 +457,9 @@ export default function StaffPortal() {
                   <h2 className="text-2xl font-black text-slate-800">{selectedStaff.name} {selectedStaff.employeeId && <span className="text-sm bg-slate-200 text-slate-600 px-2 py-0.5 rounded ml-2">#{selectedStaff.employeeId}</span>}</h2>
                   <p className="text-sm font-bold text-[#2e7d32] bg-emerald-50 px-3 py-1 rounded-full inline-block mt-2 mb-2">{selectedStaff.designation}</p>
                   <div className="text-sm text-slate-600 font-medium">মোবাইল: <span className="font-bold text-slate-800">{selectedStaff.mobile}</span></div>
+                  {selectedStaff.basicSalary !== undefined && (
+                    <div className="text-sm text-slate-600 font-medium mt-1">বেসিক বেতন: <span className="font-bold text-slate-800">৳ {selectedStaff.basicSalary.toLocaleString('bn-BD')}</span></div>
+                  )}
                 </div>
               </div>
 
@@ -429,6 +534,57 @@ export default function StaffPortal() {
                   </div>
                 );
               })()}
+
+              <div className="mt-8 border-t border-slate-100 pt-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                  <h4 className="text-lg font-bold text-slate-800">বেতন ও অগ্রিম</h4>
+                  <button 
+                    onClick={() => setShowSalaryModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Plus size={14} /> পেমেন্ট যোগ করুন
+                  </button>
+                </div>
+                
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3 font-bold">তারিখ</th>
+                        <th className="px-4 py-3 font-bold">বিবরণ</th>
+                        <th className="px-4 py-3 font-bold text-right">পরিমাণ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {salaryPayments.filter(p => p.staffId === selectedStaff.id).map(payment => (
+                        <tr key={payment.id} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-3 text-slate-600 font-medium whitespace-nowrap">
+                            {new Date(payment.date).toLocaleDateString('bn-BD')}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {payment.type === 'advance' ? (
+                                <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">অগ্রিম</span>
+                              ) : (
+                                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">বেতন</span>
+                              )}
+                              <span className="text-slate-500 text-xs">{payment.note}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 font-black text-slate-800 text-right whitespace-nowrap">
+                            ৳ {payment.amount.toLocaleString('bn-BD')}
+                          </td>
+                        </tr>
+                      ))}
+                      {salaryPayments.filter(p => p.staffId === selectedStaff.id).length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-8 text-center text-slate-400 font-medium">কোনো পেমেন্ট রেকর্ড নেই</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -439,9 +595,12 @@ export default function StaffPortal() {
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
             <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
               <h3 className="font-black text-slate-800 flex items-center gap-2">
-                <Plus size={16} className="text-[#2e7d32]" /> নতুন স্টাফ যুক্ত করুন
+                <Plus size={16} className="text-[#2e7d32]" /> {newStaff.id ? 'স্টাফ আপডেট করুন' : 'নতুন স্টাফ যুক্ত করুন'}
               </h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-rose-500 transition-colors p-1 bg-white rounded-lg border border-slate-200">
+              <button onClick={() => {
+                setShowAddModal(false);
+                setNewStaff({ id: '', name: '', mobile: '', designation: '', photo: '', employeeId: '' });
+              }} className="text-slate-400 hover:text-rose-500 transition-colors p-1 bg-white rounded-lg border border-slate-200">
                 <X size={16} />
               </button>
             </div>
@@ -502,6 +661,18 @@ export default function StaffPortal() {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">বেসিক বেতন (৳)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  placeholder="যেমন: 15000"
+                  value={newStaff.basicSalary || ''}
+                  onChange={e => setNewStaff({...newStaff, basicSalary: Number(e.target.value)})}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#2e7d32]"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1.5">মোবাইল নম্বর <span className="text-rose-500">*</span></label>
                 <input 
                   type="tel" 
@@ -515,7 +686,10 @@ export default function StaffPortal() {
               <div className="pt-4 flex gap-3">
                 <button 
                   type="button" 
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setNewStaff({ id: '', name: '', mobile: '', designation: '', photo: '', employeeId: '' });
+                  }}
                   className="flex-1 py-2.5 rounded-xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
                 >
                   বাতিল
@@ -524,7 +698,81 @@ export default function StaffPortal() {
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-[#2e7d32] hover:bg-emerald-700 transition-colors shadow-lg shadow-[#2e7d32]/20"
                 >
-                  সংরক্ষণ করুন
+                  {newStaff.id ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showSalaryModal && selectedStaff && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="font-black text-slate-800 flex items-center gap-2">
+                পেমেন্ট যোগ করুন
+              </h3>
+              <button onClick={() => setShowSalaryModal(false)} className="text-slate-400 hover:text-rose-500 transition-colors p-1 bg-white rounded-lg border border-slate-200">
+                <X size={16} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddSalary} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">পেমেন্টের ধরন</label>
+                <div className="flex gap-2">
+                  <label className={`flex-1 py-2 px-3 rounded-lg border text-sm font-bold text-center cursor-pointer transition-colors ${newSalary.type === 'regular' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                    <input type="radio" name="paymentType" value="regular" className="hidden" checked={newSalary.type === 'regular'} onChange={() => setNewSalary({...newSalary, type: 'regular'})} />
+                    বেতন
+                  </label>
+                  <label className={`flex-1 py-2 px-3 rounded-lg border text-sm font-bold text-center cursor-pointer transition-colors ${newSalary.type === 'advance' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                    <input type="radio" name="paymentType" value="advance" className="hidden" checked={newSalary.type === 'advance'} onChange={() => setNewSalary({...newSalary, type: 'advance'})} />
+                    অগ্রিম
+                  </label>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">পরিমাণ (৳) <span className="text-rose-500">*</span></label>
+                <input 
+                  type="number" 
+                  min="1"
+                  required
+                  value={newSalary.amount || ''}
+                  onChange={e => setNewSalary({...newSalary, amount: Number(e.target.value)})}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">তারিখ <span className="text-rose-500">*</span></label>
+                <input 
+                  type="date" 
+                  required
+                  value={newSalary.date}
+                  onChange={e => setNewSalary({...newSalary, date: e.target.value})}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 font-bold text-slate-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">নোট (ঐচ্ছিক)</label>
+                <input 
+                  type="text" 
+                  placeholder="যেমন: বোনাস সহ / মে মাসের অগ্রিম"
+                  value={newSalary.note}
+                  onChange={e => setNewSalary({...newSalary, note: e.target.value})}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button 
+                  type="submit"
+                  className="w-full py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+                >
+                  সেভ করুন
                 </button>
               </div>
             </form>

@@ -20,3 +20,4 @@ export const courierHistoryCollection = collection(db, "courierHistory");
 export const notificationsCollection = collection(db, "notifications");
 export const staffCollection = collection(db, "staff");
 export const attendanceCollection = collection(db, "attendance");
+export const salaryCollection = collection(db, "salaryPayments");

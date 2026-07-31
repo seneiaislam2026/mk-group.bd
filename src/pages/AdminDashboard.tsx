@@ -6891,7 +6891,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         recipient_phone: courierBookingData.recipient_phone,
                         recipient_address: courierBookingData.recipient_address,
                         cod_amount: courierBookingData.cod_amount,
-                        delivery_type: courierBookingData.delivery_type === 'home' ? 2 : 1,
+                        delivery_type: courierBookingData.delivery_type === 'home' ? 1 : 2,
                         note: `${courierBookingData.note ? courierBookingData.note + ' | ' : ''}Delivery: ${courierBookingData.delivery_type === 'home' ? 'Home Delivery' : 'Point Delivery'}`
                       })
                     });
@@ -7604,7 +7604,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               recipient_phone: bookingOrder.phone,
                               recipient_address: bookingOrder.address,
                               cod_amount: bookingOrder.total,
-                              delivery_type: deliveryType === 'home' ? 2 : 1,
+                              delivery_type: deliveryType === 'home' ? 1 : 2,
                               note: `Category: ${bookingCategory} | Delivery: ${deliveryType === 'home' ? 'Home Delivery' : 'Point Delivery'}`
                             })
                           });

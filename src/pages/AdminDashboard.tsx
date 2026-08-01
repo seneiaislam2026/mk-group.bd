@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { PackagePlus, ExternalLink, RefreshCw, Boxes, ArrowRightLeft, SlidersHorizontal, Building, MapPin, Minus, Copy, XCircle, AlertCircle, CheckCircle2 } from "lucide-react";
 import StaffPortal from '../components/admin/StaffPortal';
+import DailySummaryModal from '../components/admin/DailySummaryModal';
 import { FileText, 
   Package, 
   ShoppingBag, ShoppingCart, 
@@ -84,6 +85,24 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   // Tab routing
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'receiving' | 'courier' | 'inventory' | 'orders' | 'customers' | 'settings' | 'finances' | 'marketing' | 'dues' | 'agreement' | 'investors' | 'staff' | 'scan_status' | 'scan_article' | 'scan_order'>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Daily Summary logo click feature
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const [isDailySummaryModalOpen, setIsDailySummaryModalOpen] = useState(false);
+  const logoClickTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const handleLogoClick = () => {
+    setLogoClickCount(prev => {
+      const newCount = prev + 1;
+      if (newCount >= 3) {
+        setIsDailySummaryModalOpen(true);
+        return 0;
+      }
+      if (logoClickTimeout.current) clearTimeout(logoClickTimeout.current);
+      logoClickTimeout.current = setTimeout(() => setLogoClickCount(0), 1000);
+      return newCount;
+    });
+  };
 
   // Language translation state
   const [lang, setLang] = useState<'bn' | 'en'>('bn');
@@ -2298,7 +2317,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   )}
                 </div>
 
-                <div className="w-8 h-8 rounded-full overflow-hidden border border-[#2e7d32]/20 shadow-sm shrink-0 bg-white">
+                <div onClick={handleLogoClick} className="w-8 h-8 rounded-full overflow-hidden border border-[#2e7d32]/20 shadow-sm shrink-0 bg-white cursor-pointer select-none">
                   <img loading="lazy" 
                     src="https://i.ibb.co/s9n1g23j/1000095789-removebg-preview.png" 
                     alt="এম.কে.গ্রুপ" 
@@ -2316,6 +2335,15 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </div>
           </div>
         </header>
+
+        {/* Daily Summary Modal */}
+        <DailySummaryModal 
+          isOpen={isDailySummaryModalOpen}
+          onClose={() => setIsDailySummaryModalOpen(false)}
+          orders={orders}
+          transactions={transactions}
+          courierHistory={courierHistory}
+        />
 
         {/* Dashboard Main Workspace */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50 p-4 md:p-6 pb-24">
@@ -6878,6 +6906,26 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   }
                   
                   try {
+                    // Fix Delivery Type Mapping (Steadfast)
+                    // Home Delivery = 2 (Assuming based on debugging, 1 maps to point delivery)
+                    // Point Delivery = 1
+                    const apiDeliveryType = courierBookingData.delivery_type === 'home' ? 2 : 1;
+                    
+                    const payload = {
+                      invoice: courierBookingData.invoice,
+                      recipient_name: courierBookingData.recipient_name,
+                      recipient_phone: courierBookingData.recipient_phone,
+                      recipient_address: courierBookingData.recipient_address,
+                      cod_amount: courierBookingData.cod_amount,
+                      delivery_type: apiDeliveryType,
+                      note: `${courierBookingData.note ? courierBookingData.note + ' | ' : ''}Delivery: ${courierBookingData.delivery_type === 'home' ? 'Home Delivery' : 'Point Delivery'}`
+                    };
+
+                    console.log("=== COURIER API BOOKING LOG ===");
+                    console.log("1. User Selected Delivery Type:", courierBookingData.delivery_type);
+                    console.log("2. Database/State Delivery Type:", courierBookingData.delivery_type);
+                    console.log("3. Final API Payload:", JSON.stringify(payload, null, 2));
+
                     const response = await fetch('https://portal.packzy.com/api/v1/create_order', {
                       method: 'POST',
                       headers: {
@@ -6885,17 +6933,10 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                         'Secret-Key': 'y0i0bp251lyktq4vx8fwcr2l',
                         'Content-Type': 'application/json'
                       },
-                      body: JSON.stringify({
-                        invoice: courierBookingData.invoice,
-                        recipient_name: courierBookingData.recipient_name,
-                        recipient_phone: courierBookingData.recipient_phone,
-                        recipient_address: courierBookingData.recipient_address,
-                        cod_amount: courierBookingData.cod_amount,
-                        delivery_type: courierBookingData.delivery_type === 'home' ? 1 : 2,
-                        note: `${courierBookingData.note ? courierBookingData.note + ' | ' : ''}Delivery: ${courierBookingData.delivery_type === 'home' ? 'Home Delivery' : 'Point Delivery'}`
-                      })
+                      body: JSON.stringify(payload)
                     });
                     const data = await response.json();
+                    console.log("4. Courier API Response:", data);
                     
                     if (data.status === 200 || data.consignment_id) {
                       const newBooking = {
@@ -7591,6 +7632,22 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     <button 
                       onClick={async () => {
                         try {
+                          const apiDeliveryType = deliveryType === 'home' ? 2 : 1;
+                          const payload = {
+                            invoice: bookingOrder.id,
+                            recipient_name: bookingOrder.customerName,
+                            recipient_phone: bookingOrder.phone,
+                            recipient_address: bookingOrder.address,
+                            cod_amount: bookingOrder.total,
+                            delivery_type: apiDeliveryType,
+                            note: `Category: ${bookingCategory} | Delivery: ${deliveryType === 'home' ? 'Home Delivery' : 'Point Delivery'}`
+                          };
+                          
+                          console.log("=== COURIER API BOOKING LOG ===");
+                          console.log("1. User Selected Delivery Type:", deliveryType);
+                          console.log("2. Database/State Delivery Type:", deliveryType);
+                          console.log("3. Final API Payload:", JSON.stringify(payload, null, 2));
+
                            const response = await fetch('https://portal.packzy.com/api/v1/create_order', {
                             method: 'POST',
                             headers: {
@@ -7598,17 +7655,11 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               'Secret-Key': 'y0i0bp251lyktq4vx8fwcr2l',
                               'Content-Type': 'application/json'
                             },
-                            body: JSON.stringify({
-                              invoice: bookingOrder.id,
-                              recipient_name: bookingOrder.customerName,
-                              recipient_phone: bookingOrder.phone,
-                              recipient_address: bookingOrder.address,
-                              cod_amount: bookingOrder.total,
-                              delivery_type: deliveryType === 'home' ? 1 : 2,
-                              note: `Category: ${bookingCategory} | Delivery: ${deliveryType === 'home' ? 'Home Delivery' : 'Point Delivery'}`
-                            })
+                            body: JSON.stringify(payload)
                           });
                           const data = await response.json();
+                          console.log("4. Courier API Response:", data);
+                          
                           if (data.status === 200 || data.consignment_id) {
                             const newBooking = {
                               consignment_id: data.consignment?.consignment_id || data.consignment_id,

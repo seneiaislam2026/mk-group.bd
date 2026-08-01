@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShoppingBag, Search, User, Menu, X, Facebook, Instagram, Youtube } from 'lucide-react';
+import { ShoppingBag, Search, User, Menu, X, Facebook, Instagram, Youtube, MapPin } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useUI } from '../../context/UIContext';
 
@@ -41,6 +41,13 @@ export default function Header() {
 
           {/* Right Icons */}
           <div className="flex items-center gap-3 sm:gap-5 text-[#00693E]">
+            <button 
+              onClick={() => setIsOrderTrackingOpen(true)}
+              title="লোকেশন / অর্ডার ট্র্যাকিং"
+              className="cursor-pointer flex items-center justify-center p-1.5 transition-all rounded-lg hover:bg-slate-100"
+            >
+              <MapPin size={22} strokeWidth={2.5} />
+            </button>
             <button 
               onClick={() => setIsCartOpen(true)} 
               className="relative cursor-pointer flex items-center justify-center transition-all p-1.5 rounded-lg border-2 border-[#00693E]"
